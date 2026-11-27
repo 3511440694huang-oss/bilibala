@@ -95,7 +95,7 @@ cd ../android && bash build.sh :app:assembleRelease
 
 根目录的 `./build.sh` 依次执行以上三步。
 
-环境要求：Node（仅用于 `node --check`）、Python 3、JDK 17、Android SDK（`compileSdk 35`）与 Gradle。仓库不包含签名文件，将 `debug.keystore` 放入 `android/keystore/` 可产出可直接安装的 APK，否则输出未签名包。
+环境要求：Node（仅用于 `node --check`）、Python 3、JDK 17、Android SDK（`compileSdk 35`）与 Gradle。仓库不包含签名文件，将 `debug.keystore` 放入 `android/keystore/` 可产出可直接安装的 APK，否则输出未签名包。`android/app/src/main/assets/web` 中已提交最新构建产物，因此跳过第 1、2 步也能直接打包。
 
 开发调试：
 
