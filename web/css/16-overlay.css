@@ -1,0 +1,175 @@
+/* ============================================================
+   16-overlay.css · 播放器叠加层（7.1 · preview）
+   责任：进度缩略图气泡 / 外挂字幕层 / 截图微调浮层
+   规矩：只挑自己的 .rr-* 类；零 backdrop-filter；圆角 16/12/胶囊；
+         触控 ≥44；.rr-sub 在 #ch-media 内、不吃事件；不动别人的选择器。
+   z-index 约定：字幕层 5（画面内，压住弹幕 3、低于 idle 4 的层级关系见下）
+                进度气泡 85（高于全屏舞台 80，低于 skip 99）
+                截图浮层 88（高于全屏舞台 80）
+   ============================================================ */
+
+/* ---------- 1. 进度拖拽缩略图气泡 ---------- */
+.rr-prev{
+  position:fixed;left:0;top:0;z-index:85;
+  pointer-events:none;
+  opacity:0;transform:translateY(4px);
+  transition:opacity 120ms var(--ease),transform 120ms var(--ease);
+  will-change:transform,opacity;
+}
+.rr-prev.is-on{opacity:1;transform:none;}
+.rr-prev__card{
+  width:176px;padding:8px 8px 6px;border-radius:16px;
+  background:var(--bg-surface);box-shadow:var(--shadow-float);
+  display:flex;flex-direction:column;gap:5px;
+}
+.rr-prev__frame{
+  position:relative;width:160px;height:90px;border-radius:10px;overflow:hidden;
+  background:var(--bg-surface-tonal);
+}
+.rr-prev__cv{display:block;width:160px;height:90px;}
+.rr-prev__ph{
+  position:absolute;inset:0;display:grid;place-items:center;
+  font-size:11px;line-height:1.2;color:var(--text-muted);letter-spacing:.02em;
+}
+.rr-prev__t{
+  display:block;text-align:center;font-size:12px;font-weight:600;
+  letter-spacing:.01em;color:var(--text-primary);
+  font-variant-numeric:tabular-nums;
+}
+/* 取样用的隐藏 <video>：留在文档里（离屏 2px），保证能解码取帧，但不参与布局 */
+.rr-prev__sampler{
+  position:fixed;left:-9999px;top:0;width:2px;height:2px;
+  pointer-events:none;border:0;background:transparent;
+}
+/* 拖动时让 core 的小时间气泡退场，时间由缩略图气泡统一显示 */
+body.rr-previewing #view-channel .ch-bubble{opacity:0;visibility:hidden;}
+
+/* ---------- 2. 外挂字幕层（#ch-media 内） ---------- */
+.rr-sub{
+  position:absolute;left:0;right:0;bottom:0;z-index:5;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  gap:3px;padding:0 12px calc(8px + env(safe-area-inset-bottom,0px));
+  pointer-events:none;text-align:center;
+  --rr-sub-size:18px;
+  --rr-sub-ink:#ffffff;
+  --rr-sub-bg:.55;
+}
+.rr-sub--fixed{position:fixed;z-index:30;}
+.rr-sub[data-pos="top"]{
+  bottom:auto;top:0;justify-content:flex-start;
+  padding:calc(8px + env(safe-area-inset-top,0px)) 12px 0;
+}
+.rr-sub[hidden]{display:none;}
+.rr-sub__ln{
+  max-width:100%;padding:1px 8px;border-radius:8px;
+  background:rgba(0,0,0,var(--rr-sub-bg));
+  color:var(--rr-sub-ink);
+  font-size:var(--rr-sub-size);line-height:1.34;font-weight:600;
+  letter-spacing:.01em;white-space:pre-wrap;word-break:break-word;
+  text-wrap:pretty;
+}
+.rr-sub[data-stroke="on"] .rr-sub__ln{
+  text-shadow:
+    -1px -1px 0 rgba(0,0,0,.9), 0 -1px 0 rgba(0,0,0,.9), 1px -1px 0 rgba(0,0,0,.9),
+    -1px 0 0 rgba(0,0,0,.9), 1px 0 0 rgba(0,0,0,.9),
+    -1px 1px 0 rgba(0,0,0,.9), 0 1px 0 rgba(0,0,0,.9), 1px 1px 0 rgba(0,0,0,.9),
+    0 2px 6px rgba(0,0,0,.42);
+}
+.rr-sub[data-stroke="off"] .rr-sub__ln{
+  text-shadow:0 1px 3px rgba(0,0,0,.55);
+}
+/* 全屏：底部字幕要让开横屏控制条（.ch-body 收起后落回画面下沿） */
+#view-channel.is-fs .rr-sub[data-pos="bottom"]{
+  padding-bottom:calc(104px + env(safe-area-inset-bottom,0px));
+}
+#view-channel.is-fs.is-away .rr-sub[data-pos="bottom"]{
+  padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));
+}
+#view-channel.is-fs .rr-sub[data-pos="top"]{
+  padding-top:calc(18px + env(safe-area-inset-top,0px));
+}
+
+/* ---------- 3. 字幕样式面板（放进 RR.sheet） ---------- */
+.rr-subcfg{display:flex;flex-direction:column;gap:16px;min-width:0;}
+.rr-subcfg__row{display:flex;flex-direction:column;gap:8px;min-width:0;}
+.rr-subcfg__lbl{
+  font-size:11px;font-weight:600;letter-spacing:.08em;
+  color:var(--text-muted);text-transform:uppercase;
+}
+.rr-subcfg__opts{display:flex;flex-wrap:wrap;gap:8px;min-width:0;}
+.rr-subcfg__note{font-size:12px;line-height:1.5;color:var(--text-muted);}
+.rr-opt{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  height:44px;min-width:44px;padding:0 14px;border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);color:var(--text-secondary);
+  font-size:13px;font-weight:600;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+.rr-opt:hover{background:var(--bg-surface-hover);color:var(--text-primary);}
+.rr-opt:active{transform:scale(.97);}
+.rr-opt.is-on{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 1px rgba(107,138,253,.28);}
+html[data-theme="dark"] .rr-opt.is-on{background:var(--accent-tonal);}
+.rr-opt__dot{width:16px;height:16px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18);}
+
+/* ---------- 4. 截图微调浮层 ---------- */
+.rr-shot{
+  position:fixed;inset:0;z-index:88;
+  display:flex;flex-direction:column;gap:10px;
+  padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(10px + env(safe-area-inset-bottom,0px));
+  background:#08090B;color:#E8EAEC;
+  min-width:0;
+}
+.rr-shot[hidden]{display:none;}
+.rr-shot__top{flex:none;display:flex;align-items:center;gap:8px;height:44px;min-width:0;}
+.rr-shot__ttl{
+  font-size:13px;font-weight:600;letter-spacing:.02em;color:#C9CDD2;
+  white-space:nowrap;
+}
+.rr-shot__time{
+  margin-left:auto;font-family:var(--font-mono);font-size:13px;
+  font-variant-numeric:tabular-nums;color:#F2F4F5;white-space:nowrap;
+}
+.rr-shot__x{
+  flex:none;width:44px;height:44px;border-radius:var(--r-pill);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:#E8EAEC;transition:background var(--dur) var(--ease);
+}
+.rr-shot__x:hover{background:rgba(255,255,255,.10);}
+.rr-shot__x:active{transform:scale(.96);}
+.rr-shot__stage{flex:1;min-height:0;display:grid;place-items:center;}
+.rr-shot__cv{
+  max-width:100%;max-height:100%;width:auto;height:auto;
+  border-radius:12px;background:#000;
+  box-shadow:0 24px 64px -20px rgba(0,0,0,.9);
+}
+.rr-shot__hint{
+  flex:none;min-height:17px;text-align:center;font-size:12px;line-height:1.4;
+  color:#C9CDD2;
+}
+.rr-shot__hint[data-kind="err"]{color:#FFA7A7;}
+.rr-shot__bar{flex:none;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-width:0;}
+.rr-shot__btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  height:44px;min-width:88px;padding:0 16px;border-radius:var(--r-pill);
+  background:rgba(255,255,255,.10);color:#EDEFF1;
+  font-size:13px;font-weight:600;
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+.rr-shot__btn:hover{background:rgba(255,255,255,.17);}
+.rr-shot__btn:active{transform:scale(.97);}
+.rr-shot__btn svg{width:18px;height:18px;flex:none;}
+.rr-shot__btn--save{background:var(--accent);color:var(--accent-ink);}
+.rr-shot__btn--save:hover{background:var(--accent);filter:brightness(1.06);}
+/* 浮层打开时把 toast 抬到最上层，保存反馈才看得见（只改层级，不改样式） */
+body.rr-shot-open .toast{z-index:92;}
+
+@media (max-width:340px){
+  .rr-prev__card{width:160px;}
+  .rr-prev__cv,.rr-prev__frame{width:144px;height:81px;}
+  .rr-shot__btn{min-width:76px;padding:0 12px;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .rr-prev{transition:none;}
+  .rr-opt,.rr-shot__btn,.rr-shot__x{transition:none;}
+}

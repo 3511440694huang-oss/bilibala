@@ -1,0 +1,898 @@
+/* ============================================================
+   live · 直播台
+   gemini-grade-ui：16:9 深色窗口 + 一层安静的实时弹幕卡
+   区块只靠 --bg-* 明度差分层，不用粗边；渐变只出现在 1.5px 环与 ≤.12 环境光。
+   全部选择器以 #view-live 开头（契约 §1）。
+   ============================================================ */
+
+/* ---------- 页面骨架 ---------- */
+#view-live .lv-page{
+  display:flex;
+  flex-direction:column;
+  gap:var(--sp-4);
+  min-width:0;
+}
+#view-live .lv-left{
+  display:flex;
+  flex-direction:column;
+  gap:var(--sp-4);
+  min-width:0;
+}
+
+/* ---------- 舞台 ---------- */
+#view-live .lv-stagewrap{
+  position:relative;
+  min-width:0;
+}
+/* ≤.12 的环境光晕：只是让深色窗口浮起来，不铺面 */
+#view-live .lv-stagewrap::before{
+  content:"";
+  position:absolute;
+  /* 只上下溢出，左右贴边：光晕不能让包裹层产生横向可滚动溢出（768 下会顶出 6px） */
+  inset:-6% 0 26%;
+  border-radius:44px;
+  background:var(--gemini-soft);
+  opacity:.62;
+  pointer-events:none;
+  z-index:0;
+}
+#view-live .lv-stage{
+  position:relative;
+  z-index:1;
+  width:100%;
+  aspect-ratio:16 / 9;
+  padding:0;
+  overflow:hidden;
+  border-radius:var(--r-card);
+  background:#0E1013;
+  color:#F2F5F8;
+  box-shadow:var(--shadow-ambient);
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+}
+#view-live .lv-stage[data-state="offline"]{
+  min-height:212px;
+  background:var(--bg-surface-tonal);
+  color:var(--text-primary);
+}
+#view-live .lv-stage[data-state="error"],
+#view-live .lv-stage[data-state="reconnect"]{
+  min-height:172px;
+}
+#view-live .lv-video{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:transparent;
+  opacity:1;
+  transition:opacity var(--dur) var(--ease);
+}
+#view-live .lv-stage[data-state="offline"] .lv-video{
+  opacity:0;
+}
+/* 影调压边：只为让角标/标题可读，黑色中性，不是装饰渐变 */
+#view-live .lv-scrim{
+  position:absolute;
+  inset:0;
+  z-index:2;
+  pointer-events:none;
+  background:linear-gradient(180deg,rgba(6,8,10,.52) 0%,rgba(6,8,10,0) 28%,rgba(6,8,10,0) 66%,rgba(6,8,10,.36) 100%);
+  opacity:1;
+  transition:opacity var(--dur) var(--ease);
+}
+#view-live .lv-stage[data-state="offline"] .lv-scrim{
+  opacity:0;
+}
+
+/* 切档定格帧：盖住 video，但在提示层之下（切流时不黑屏） */
+#view-live .lv-hold{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  z-index:1;
+  background:#0E1013;
+  pointer-events:none;
+  opacity:1;
+  transition:opacity 220ms var(--ease);
+}
+#view-live .lv-hold.is-out{
+  opacity:0;
+}
+
+/* 切档状态：舞台右上角常驻小胶囊，不挡全屏键 */
+#view-live .lv-sw{
+  position:absolute;
+  top:12px;
+  right:64px;
+  z-index:5;
+  display:inline-flex;
+  align-items:center;
+  height:28px;
+  padding:0 12px;
+  border-radius:var(--r-pill);
+  background:rgba(12,14,17,.62);
+  color:#F2F5F8;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.03em;
+  white-space:nowrap;
+  pointer-events:none;
+  animation:lvSwIn 180ms var(--ease);
+}
+@keyframes lvSwIn{
+  from{opacity:0;transform:translateY(-4px);}
+  to{opacity:1;transform:none;}
+}
+
+/* 角标行 */
+#view-live .lv-top{
+  position:absolute;
+  top:12px;
+  left:12px;
+  right:12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:var(--sp-2);
+  z-index:4;
+}
+#view-live .lv-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  height:28px;
+  padding:0 12px;
+  border-radius:var(--r-pill);
+  background:rgba(12,14,17,.58);
+  color:#F2F5F8;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.03em;
+  white-space:nowrap;
+}
+#view-live .lv-badge.is-warn{
+  background:rgba(30,28,20,.72);
+  color:#F5E5C0;
+}
+#view-live .lv-dot{
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:currentColor;
+  flex:none;
+}
+#view-live .lv-stage[data-state="live"] .lv-badge .lv-dot{
+  color:#9DC0FF;
+  animation:lvPulse 2.6s var(--ease) infinite;
+}
+@keyframes lvPulse{
+  0%{box-shadow:0 0 0 0 rgba(157,192,255,.5);}
+  70%{box-shadow:0 0 0 6px rgba(157,192,255,0);}
+  100%{box-shadow:0 0 0 0 rgba(157,192,255,0);}
+}
+#view-live .lv-fsbtn{
+  margin-left:auto;
+  color:#F2F5F8;
+  background:rgba(12,14,17,.52);
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-live .lv-fsbtn:hover{
+  background:rgba(22,26,31,.78);
+  color:#FFFFFF;
+}
+
+/* 状态覆盖层 */
+#view-live .lv-veil{
+  position:absolute;
+  inset:0;
+  z-index:3;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:18px 24px;
+  text-align:center;
+}
+#view-live .lv-spin{
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  border:1.75px solid rgba(242,245,248,.22);
+  border-top-color:rgba(242,245,248,.92);
+  animation:lvSpin .9s linear infinite;
+}
+@keyframes lvSpin{
+  to{transform:rotate(360deg);}
+}
+#view-live .lv-veil--off{
+  flex-direction:row;
+  align-items:center;
+  justify-content:flex-start;
+  gap:var(--sp-4);
+  padding:18px 22px;
+  background:transparent;
+  text-align:left;
+}
+#view-live .lv-veil > *{
+  flex:0 0 auto;
+}
+#view-live .lv-offmsg{
+  flex:1 1 auto;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:4px;
+}
+#view-live .lv-art{
+  color:rgba(242,245,248,.42);
+  margin-bottom:2px;
+  animation:lvBreathe 5.6s var(--ease) infinite;
+}
+@keyframes lvBreathe{
+  0%,100%{opacity:.62;transform:scale(1);}
+  50%{opacity:1;transform:scale(1.03);}
+}
+#view-live .lv-art--off{
+  color:var(--text-muted);
+  opacity:.9;
+  animation:none;
+}
+#view-live .lv-art svg{
+  width:56px;
+  height:56px;
+}
+#view-live .lv-art--off svg{
+  width:48px;
+  height:48px;
+}
+#view-live .lv-note-t{
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:0;
+  line-height:1.5;
+  color:rgba(242,245,248,.84);
+  max-width:30ch;
+}
+#view-live .lv-note-btn{
+  height:44px;
+  padding:0 var(--sp-4);
+  font-size:13px;
+  background:transparent;
+  color:#F2F5F8;
+  box-shadow:none;
+}
+#view-live .lv-note-btn:hover{
+  background:rgba(255,255,255,.12);
+  box-shadow:none;
+}
+#view-live .lv-off-t{
+  font-size:19px;
+  font-weight:600;
+  letter-spacing:-.018em;
+  line-height:1.25;
+}
+#view-live .lv-off-s{
+  font-size:13px;
+  line-height:1.6;
+  color:var(--text-secondary);
+  max-width:36ch;
+}
+#view-live .lv-off-btn{
+  margin-top:6px;
+}
+
+/* ---------- 原生横屏全屏 ---------- */
+/* 44：高于 dock(40)，低于 scrim(45)/sheet(46)/toast(50)——
+   和 #view-channel.is-fs 同档，全屏里的提示/抽屉不会被画面盖住。 */
+#view-live.is-fs{
+  position:fixed;
+  inset:0;
+  z-index:44;
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  height:100vh;
+  height:100dvh;
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:#000;
+}
+#view-live.is-fs .lv-page,
+#view-live.is-fs .lv-left{
+  display:block;
+  flex:1 1 auto;
+  height:100%;
+  min-height:0;
+  gap:0;
+}
+#view-live.is-fs .lv-stagewrap{
+  height:100%;
+}
+#view-live.is-fs .lv-stagewrap::before{
+  display:none;
+}
+#view-live.is-fs .lv-stage{
+  width:100vw;
+  height:100vh;
+  height:100dvh;
+  max-height:none;
+  min-height:0;
+  aspect-ratio:auto;
+  border-radius:0;
+  box-shadow:none;
+  background:#000;
+}
+#view-live.is-fs .lv-video{
+  object-fit:contain;
+  background:#000;
+}
+#view-live.is-fs .lv-meta,
+#view-live.is-fs .lv-panel,
+#view-live.is-fs .lv-foot{
+  display:none;
+}
+#view-live.is-fs .lv-top{
+  top:calc(12px + env(safe-area-inset-top,0px));
+  left:calc(12px + env(safe-area-inset-left,0px));
+  right:calc(12px + env(safe-area-inset-right,0px));
+}
+#view-live.is-fs .lv-sw{
+  top:calc(12px + env(safe-area-inset-top,0px));
+  right:calc(64px + env(safe-area-inset-right,0px));
+}
+/* 全屏时顶栏 / 悬浮 dock / 小窗的让位在 js/41-live.js 的 setChromeHidden 里做：
+   这三个节点在 #view-live 之外，按契约 §1 本文件不越界选它们。 */
+
+/* 占位图上的提示文字：压一层影，深色 idle 图上也能读 */
+#view-live .lv-stage[data-state="loading"] .lv-note-t,
+#view-live .lv-stage[data-state="error"] .lv-note-t,
+#view-live .lv-stage[data-state="reconnect"] .lv-note-t{
+  text-shadow:0 1px 6px rgba(0,0,0,.65);
+}
+
+/* ---------- 标题与播控 ---------- */
+#view-live .lv-meta{
+  display:flex;
+  align-items:flex-start;
+  gap:var(--sp-3);
+  flex-wrap:wrap;
+  min-width:0;
+}
+#view-live .lv-meta__main{
+  flex:1 1 150px;
+  min-width:0;
+}
+#view-live .lv-title{
+  color:var(--text-primary);
+  margin:0;
+}
+#view-live .lv-sub{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:4px;
+  font-size:13px;
+  line-height:1.5;
+  color:var(--text-muted);
+  min-width:0;
+}
+#view-live .lv-sub__name{
+  color:var(--text-secondary);
+  min-width:0;
+  max-width:12em;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#view-live .lv-sep{
+  width:3px;
+  height:3px;
+  border-radius:50%;
+  background:var(--border-strong);
+  flex:none;
+}
+#view-live .lv-ctl{
+  display:flex;
+  align-items:center;
+  gap:var(--sp-2);
+  margin-left:auto;
+  flex:none;
+  transition:opacity var(--dur) var(--ease);
+}
+#view-live .lv-ctl.is-off{
+  opacity:.42;
+}
+#view-live .lv-qn{
+  position:relative;
+  background:var(--bg-surface);
+  box-shadow:var(--shadow-ambient);
+  padding:0 var(--sp-4);
+  font-size:13px;
+}
+/* 命中区 ≥44：视觉尺寸不变，用透明 ::after 外扩 */
+#view-live .lv-qn::after{
+  content:"";
+  position:absolute;
+  left:-4px;
+  right:-4px;
+  top:-2px;
+  bottom:-2px;
+  border-radius:var(--r-pill);
+}
+#view-live .lv-qn:hover{
+  background:var(--bg-surface);
+  box-shadow:var(--shadow-elevated);
+}
+#view-live .lv-mute,
+#view-live .lv-refresh{
+  background:var(--bg-surface);
+  box-shadow:var(--shadow-ambient);
+  color:var(--text-secondary);
+}
+#view-live .lv-mute:hover,
+#view-live .lv-refresh:hover{
+  background:var(--bg-surface);
+  color:var(--text-primary);
+  box-shadow:var(--shadow-elevated);
+}
+#view-live .lv-mute.is-off{
+  color:var(--text-muted);
+}
+
+/* ---------- 弹幕面板 ---------- */
+#view-live .lv-panel{
+  display:flex;
+  flex-direction:column;
+  padding:0;
+  overflow:hidden;
+  min-width:0;
+  min-height:0;
+  box-shadow:var(--shadow-ambient);
+}
+#view-live .lv-phead{
+  display:flex;
+  align-items:center;
+  gap:var(--sp-3);
+  padding:var(--sp-4) var(--sp-5) 6px;
+  min-width:0;
+}
+#view-live .lv-conn{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  height:26px;
+  padding:0 10px;
+  margin-left:auto;
+  border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);
+  color:var(--text-muted);
+  font-size:11.5px;
+  font-weight:600;
+  letter-spacing:.02em;
+  white-space:nowrap;
+  flex:none;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+}
+#view-live .lv-conn[data-state="on"]{
+  background:var(--accent-soft);
+  color:var(--accent);
+}
+#view-live .lv-conn[data-state="err"]{
+  background:var(--bg-surface-tonal);
+  color:var(--text-secondary);
+}
+#view-live .lv-conn[data-state="off"] .lv-dot{
+  opacity:.4;
+}
+
+#view-live .lv-feedwrap{
+  position:relative;
+  display:flex;
+  flex:1 1 0;               /* 高度由面板定；手机上面板是 auto，列表就锁在 160 */
+  min-height:160px;         /* 面板定高时撑满，auto 高时别再塌成 0 */
+  padding:0 var(--sp-5);
+  min-width:0;
+}
+#view-live .lv-feed{
+  flex:1 1 0;                 /* 手机：固定 160 起跳，不随消息数把面板撑高 */
+  min-height:0;
+  max-height:46dvh;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  padding:2px 2px 10px;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:0;
+}
+#view-live .lv-feedempty{
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  padding:6px 2px 0;
+  pointer-events:none;
+}
+#view-live .lv-ghost{
+  font-size:13px;
+  line-height:1.6;
+  color:var(--text-muted);
+  opacity:.72;
+  margin:0;
+  min-width:0;
+}
+
+#view-live .chat-line{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  padding:5px 0;
+  font-size:14px;
+  line-height:1.55;
+  min-width:0;
+  animation:lvLine .26s var(--ease);
+}
+@keyframes lvLine{
+  from{opacity:0;transform:translateY(4px);}
+  to{opacity:1;transform:none;}
+}
+#view-live .chat-line__u{
+  flex:0 0 auto;
+  max-width:40%;
+  font-size:12.5px;
+  line-height:1.55;
+  color:var(--text-muted);
+}
+#view-live .chat-line__t{
+  min-width:0;
+  color:var(--text-primary);
+  word-break:break-word;
+}
+#view-live .chat-line.is-sys{
+  display:block;
+  padding:5px 0;
+  font-size:12.5px;
+  color:var(--text-muted);
+}
+#view-live .chat-line.is-sc{
+  margin:4px 0;
+  padding:9px 11px;
+  border-radius:var(--r-inner);
+  background:var(--accent-soft);
+  align-items:center;
+}
+#view-live .chat-line__price{
+  flex:none;
+  height:22px;
+  padding:0 8px;
+  border-radius:var(--r-pill);
+  background:var(--accent-tonal);
+  color:var(--accent);
+  font-size:11.5px;
+  font-weight:700;
+  line-height:22px;
+}
+
+#view-live .lv-new{
+  position:absolute;
+  left:50%;
+  bottom:14px;
+  transform:translateX(-50%);
+  padding:0 var(--sp-4);
+  font-size:13px;
+  background:var(--bg-surface);
+  color:var(--text-primary);
+  box-shadow:var(--shadow-float);
+  animation:lvRise .24s var(--ease);
+}
+#view-live .lv-new:hover{
+  background:var(--bg-surface);
+  box-shadow:var(--shadow-float);
+  transform:translateX(-50%) translateY(-1px);
+}
+#view-live .lv-new:active{
+  transform:translateX(-50%) scale(.98);
+}
+@keyframes lvRise{
+  from{opacity:0;transform:translate(-50%,8px);}
+  to{opacity:1;transform:translate(-50%,0);}
+}
+
+/* ---------- 登录提示 ---------- */
+#view-live .lv-loginbar{
+  display:flex;
+  align-items:center;
+  gap:var(--sp-3);
+  flex-wrap:wrap;
+  margin:2px var(--sp-5) 0;
+  padding:8px 8px 8px var(--sp-4);
+  border-radius:var(--r-inner);
+  background:var(--bg-surface-tonal);
+}
+#view-live .lv-loginbar__t{
+  flex:1 1 160px;
+  min-width:0;
+  font-size:12.5px;
+  line-height:1.5;
+  color:var(--text-secondary);
+}
+#view-live .lv-loginbar .btn{
+  height:44px;
+  background:var(--bg-surface);
+  box-shadow:var(--shadow-ambient);
+}
+
+/* ---------- 发送条 ---------- */
+#view-live .lv-compose{
+  display:flex;
+  align-items:center;
+  gap:var(--sp-2);
+  padding:var(--sp-2) var(--sp-5) 0;
+  min-width:0;
+}
+#view-live .lv-emobtn{
+  flex:none;
+  color:var(--text-secondary);
+}
+#view-live .lv-emobtn[aria-expanded="true"]{
+  background:var(--bg-surface-tonal);
+  color:var(--text-primary);
+}
+#view-live .lv-inputwrap{
+  flex:1 1 auto;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  height:44px;
+  padding:0 var(--sp-4);
+  border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);
+  cursor:text;
+  transition:box-shadow var(--dur) var(--ease),background var(--dur) var(--ease);
+}
+#view-live .lv-inputwrap:hover{
+  background:var(--bg-surface-hover);
+}
+#view-live .lv-inputwrap:focus-within{
+  background:var(--bg-surface-tonal);
+  box-shadow:inset 0 0 0 1.5px var(--accent);
+}
+#view-live .lv-input{
+  flex:1 1 auto;
+  min-width:0;
+  height:100%;
+  border:0;
+  outline:none;
+  background:transparent;
+  font-size:14px;
+  color:var(--text-primary);
+}
+#view-live .lv-input::placeholder{
+  color:var(--text-muted);
+}
+#view-live .lv-send{
+  flex:none;
+  min-width:76px;
+}
+#view-live .lv-send:disabled{
+  opacity:.5;
+  cursor:default;
+}
+#view-live .lv-send:disabled:active{
+  transform:none;
+}
+#view-live .lv-foot{
+  padding:10px var(--sp-5) 18px;
+  font-size:12px;
+  line-height:1.6;
+  color:var(--text-muted);
+}
+
+/* ---------- 表情面板 ---------- */
+#view-live .lv-emopane{
+  display:flex;
+  flex-direction:column;
+  margin-top:var(--sp-2);
+  padding-bottom:2px;
+  background:var(--bg-surface-tonal);
+  animation:lvPane .22s var(--ease);
+}
+@keyframes lvPane{
+  from{opacity:0;transform:translateY(6px);}
+  to{opacity:1;transform:none;}
+}
+#view-live .lv-emotabs{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:8px var(--sp-4);
+  overflow-x:auto;
+  overflow-y:hidden;
+  overscroll-behavior-x:contain;
+  scrollbar-width:none;
+}
+#view-live .lv-emotabs::-webkit-scrollbar{
+  display:none;
+}
+#view-live .lv-etab{
+  flex:none;
+  height:44px;
+  padding:0 var(--sp-4);
+  border-radius:var(--r-pill);
+  background:transparent;
+  color:var(--text-secondary);
+  font-size:13px;
+  font-weight:500;
+  white-space:nowrap;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
+#view-live .lv-etab:hover{
+  background:var(--bg-surface-hover);
+  color:var(--text-primary);
+}
+#view-live .lv-etab.is-on{
+  background:var(--bg-surface);
+  color:var(--text-primary);
+  box-shadow:var(--shadow-ambient);
+}
+/* 8 列：每格 ≥44 命中面积；窄屏放不下时本行内横向滚动（不外溢文档） */
+#view-live .lv-emogrid{
+  display:grid;
+  grid-template-columns:repeat(8,minmax(44px,1fr));
+  gap:0;
+  max-height:min(38vh,236px);
+  overflow:auto;
+  overscroll-behavior:contain;
+  padding:0 0 6px;
+  scrollbar-width:thin;
+}
+#view-live .lv-eitem{
+  height:46px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-live .lv-eitem:hover{
+  background:var(--bg-surface-hover);
+}
+#view-live .lv-eitem:active{
+  transform:scale(.94);
+}
+#view-live .lv-eitem.is-sel{
+  background:var(--accent-soft);
+  box-shadow:inset 0 0 0 1px var(--accent-tonal);
+}
+#view-live .lv-eimg{
+  width:32px;
+  height:32px;
+  object-fit:contain;
+  pointer-events:none;
+}
+#view-live .lv-efb{
+  font-size:12px;
+  line-height:1.2;
+  color:var(--text-muted);
+  pointer-events:none;
+}
+#view-live .lv-emomsgwrap{
+  display:flex;
+  align-items:center;
+  gap:var(--sp-3);
+  flex-wrap:wrap;
+  padding:10px var(--sp-4);
+}
+#view-live .lv-emomsg{
+  flex:1 1 180px;
+  min-width:0;
+  font-size:12.5px;
+  line-height:1.55;
+  color:var(--text-muted);
+}
+#view-live .lv-emoretry{
+  flex:none;
+  height:44px;
+  background:var(--bg-surface);
+  box-shadow:var(--shadow-ambient);
+}
+#view-live .lv-emoprev{
+  display:flex;
+  align-items:center;
+  gap:var(--sp-3);
+  padding:8px var(--sp-4) 12px;
+  animation:lvLine .2s var(--ease);
+}
+#view-live .lv-emoprev__img{
+  flex:none;
+  width:36px;
+  height:36px;
+  object-fit:contain;
+}
+#view-live .lv-emoprev__name{
+  flex:1 1 auto;
+  min-width:0;
+  font-size:13px;
+  color:var(--text-secondary);
+}
+#view-live .lv-emoprev__send{
+  flex:none;
+  background:var(--bg-surface);
+  box-shadow:var(--shadow-ambient);
+}
+#view-live .lv-emoprev__x{
+  flex:none;
+  width:44px;
+  height:44px;
+  color:var(--text-muted);
+}
+
+/* ---------- 视口适配 ---------- */
+@media (max-width:379px){
+  #view-live .lv-phead,
+  #view-live .lv-compose{
+    padding-left:var(--sp-4);
+    padding-right:var(--sp-4);
+  }
+  #view-live .lv-feedwrap{
+    padding-left:var(--sp-4);
+    padding-right:var(--sp-4);
+  }
+  #view-live .lv-loginbar{
+    margin-left:var(--sp-4);
+    margin-right:var(--sp-4);
+  }
+  #view-live .lv-foot{
+    padding-left:var(--sp-4);
+    padding-right:var(--sp-4);
+  }
+  #view-live .lv-send{
+    min-width:64px;
+    padding:0 var(--sp-3);
+  }
+  #view-live .lv-art svg{
+    width:56px;
+    height:56px;
+  }
+}
+
+@media (min-width:900px){
+  #view-live .lv-page{
+    display:grid;
+    grid-template-columns:minmax(0,1.55fr) minmax(360px,1fr);
+    gap:var(--sp-6);
+    align-items:stretch;
+  }
+  #view-live .lv-panel{
+    height:100%;
+  }
+  #view-live .lv-panel.is-emo{
+    height:auto;
+    align-self:start;
+  }
+  #view-live .lv-left{
+    gap:var(--sp-4);
+  }
+  #view-live .lv-stage{
+    max-height:calc(100vh - 320px);
+  }
+  #view-live .lv-veil{
+    padding:28px;
+  }
+}
+
+@media (min-width:1200px){
+  #view-live .lv-page{
+    grid-template-columns:minmax(0,1.9fr) minmax(380px,1fr);
+  }
+}

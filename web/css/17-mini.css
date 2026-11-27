@@ -1,0 +1,149 @@
+/* ============================================================
+   17-mini.css · 8.0 小窗播放 / 系统画中画 / 标题旁的清晰度入口
+   ------------------------------------------------------------
+   加载顺序在 10-channel / 12-dm / 15-gesture / 16-overlay 之后，
+   所以这里可以覆写频道视图的标题行，但**只加不改**别人的选择器语义。
+   硬约束：不出现 backdrop-filter、不用红/粉主色、不动宽高做动效。
+   ============================================================ */
+
+/* ---------- 1. 标题旁的画质胶囊（#ch-qn，views/channel.html 新增的唯一节点） ----------
+   视觉 30 高，命中 44（::after 透明外扩 7px）；横屏 is-fs 里视觉 26、命中 44。
+   .ch-head__txt 由块流改成可换行 flex：标题 + 胶囊一行，元信息独占下一行。 */
+#view-channel .ch-head__txt{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px 10px;}
+#view-channel .ch-head__txt .ch-title{flex:1 1 auto;min-width:0;}
+#view-channel .ch-head__txt .ch-meta{flex:0 0 100%;min-width:0;margin-top:0;}
+
+#view-channel .ch-qnbtn{
+  position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;
+  height:30px;margin-top:-3px;padding:0 12px;border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);color:var(--text-secondary);
+  font-size:12px;font-weight:600;line-height:1;letter-spacing:.01em;
+  font-variant-numeric:tabular-nums;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+  -webkit-tap-highlight-color:transparent;
+}
+#view-channel .ch-qnbtn::after{
+  content:"";position:absolute;left:-2px;right:-2px;top:-7px;bottom:-7px;border-radius:var(--r-pill);
+}
+#view-channel .ch-qnbtn:hover{background:var(--bg-surface-hover);color:var(--text-primary);}
+#view-channel .ch-qnbtn[data-qn="0"]{color:var(--accent);}
+
+/* 横屏/全屏：压在底部渐变的标题行里，字号收小但命中不缩（26 + 9×2 = 44） */
+#view-channel.is-fs .ch-qnbtn{
+  height:26px;margin-top:-4px;padding:0 10px;font-size:11px;
+  background:rgba(255,255,255,.14);color:rgba(242,244,247,.92);
+}
+#view-channel.is-fs .ch-qnbtn::after{top:-9px;bottom:-9px;}
+#view-channel.is-fs .ch-qnbtn:hover{background:rgba(255,255,255,.22);color:#fff;}
+#view-channel.is-fs .ch-qnbtn[data-qn="0"]{color:#A8C7FA;}
+
+/* ---------- 2. 空闲底图（8.0 第 8 项） ----------
+   空闲/失败态 #ch-poster 换成我们自己的 /assets/idle.webp（由 30-player 的 setIdleArt 挂上），
+   这里只给它合适的透明度；节目封面只在真在放时出现。 */
+#view-channel .ch-stage.is-idle-art .ch-poster{opacity:.5;object-fit:cover;}
+
+/* ---------- 3. 小窗容器 ----------
+   #mini / #mini-stage / #mini-bar / #mini-toggle / #mini-close / #mini-open
+   全部由 shell.html 提供；JS 只把 #player 节点搬进 #mini-stage。 */
+.mini{
+  position:fixed;right:calc(12px + env(safe-area-inset-right,0px));
+  bottom:calc(84px + env(safe-area-inset-bottom,0px));
+  z-index:45;                      /* dock 40 之上、toast 50 / sheet 46 之下 */
+  width:min(46vw,196px);max-width:196px;
+  border-radius:16px;background:var(--bg-surface);
+  box-shadow:var(--shadow-float);
+  overflow:hidden;transform:translate3d(0,0,0);
+  transition:transform 220ms var(--ease);
+  touch-action:none;-webkit-tap-highlight-color:transparent;
+  will-change:transform;
+}
+.mini.is-drag{transition:none !important;}
+
+.mini__stage{
+  position:relative;width:100%;aspect-ratio:16/9;
+  background:#05070A;overflow:hidden;
+}
+.mini__stage video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;display:block;background:#05070A;
+}
+
+.mini__bar{
+  position:relative;z-index:2;height:44px;
+  display:flex;align-items:center;gap:2px;
+  padding:0 4px 0 10px;background:var(--bg-surface);
+}
+.mini__title{
+  display:block;flex:1 1 auto;min-width:0;
+  font-size:11.5px;line-height:1.25;font-weight:600;color:var(--text-primary);
+}
+.mini__btn{
+  position:relative;flex:none;width:36px;height:36px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:var(--r-pill);background:transparent;color:var(--text-secondary);
+  transition:background 140ms var(--ease),color 140ms var(--ease);
+}
+.mini__btn::after{content:"";position:absolute;inset:-4px;border-radius:var(--r-pill);}
+.mini__btn svg{width:18px;height:18px;}
+.mini__btn:hover{background:var(--bg-surface-hover);color:var(--text-primary);}
+
+/* 「回到频道」：透明按钮铺满画面，条上的按钮在它之上（z-index 2） */
+.mini__open{
+  position:absolute;left:0;top:0;right:0;bottom:44px;z-index:1;
+  border:0;background:transparent;padding:0;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* ---------- 4. 系统画中画（window.__rrPip 切 html.is-pip） ----------
+   只留「video 铺满 + 纯黑底」，其它一切 UI 全部让位；页面不许滚动。 */
+html.is-pip{overflow:hidden !important;height:100%;background:#000;}
+html.is-pip body{overflow:hidden !important;height:100%;background:#000;}
+
+html.is-pip #top,
+html.is-pip .dock,
+html.is-pip .ch-body,
+html.is-pip .ch-idle,
+html.is-pip #mini,
+html.is-pip .ch-fs,
+html.is-pip .ch-lock,
+html.is-pip .ch-shield,
+html.is-pip .ch-loading,
+html.is-pip .ch-stall,
+html.is-pip .ch-boost,
+html.is-pip .ch-hint,
+html.is-pip .ch-poster,
+html.is-pip .ch-vignette,
+html.is-pip .ch-dm,
+html.is-pip .ch-band,
+html.is-pip .dm-bar,
+html.is-pip .dm-pop,
+html.is-pip .dm-note,
+html.is-pip .fs-tint,
+html.is-pip .toast,
+html.is-pip .sheet,
+html.is-pip .scrim,
+html.is-pip .ambient,
+html.is-pip .skip{display:none !important;}
+
+html.is-pip #view-channel{
+  position:fixed;inset:0;z-index:9999;
+  display:block !important;                 /* 盖过 [hidden]{display:none} */
+  padding:0;margin:0;background:#000;overflow:hidden;
+}
+html.is-pip #view-channel .ch{display:block;height:100%;padding:0;gap:0;}
+html.is-pip #view-channel .ch__main{position:static;height:100%;}
+html.is-pip #view-channel .ch-stage{
+  height:100%;border-radius:0;background:#000;box-shadow:none;
+  transform:none !important;overflow:hidden;
+}
+html.is-pip #view-channel .ch-media{
+  position:absolute;inset:0;height:100%;aspect-ratio:auto;
+  background:#000;box-shadow:none;cursor:default;
+}
+html.is-pip #view-channel .ch-media video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;background:#000;border-radius:0;box-shadow:none;
+}
+
+/* 减少动效：小窗吸附不做过渡，位置一次到位 */
+html.reduce-motion .mini{transition:none;}

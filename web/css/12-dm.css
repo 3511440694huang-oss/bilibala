@@ -1,0 +1,370 @@
+/* ============================================================
+   12-dm.css · 弹幕输入条 / 弹幕设置面板 / 画布兜底
+   归属：danmaku（js/20-danmaku.js、js/21-dm-ui.js）
+   - 竖屏：输入条是播放卡底部的一行（44px 触控）
+   - 横屏（#view-channel.is-fs）：收起=「发个弹幕」胶囊，点开=深色输入行；
+     面板/输入都不拦截画面手势，pointerdown 不 preventDefault
+   - 弹幕 canvas 由 10-channel.css 定位（z4），这里只兜底自建画布
+   ============================================================ */
+
+/* ---------- 画布兜底（#dm-canvas 缺失时由 JS 自建） ---------- */
+#view-channel .dm-canvas--auto{
+  position:absolute;inset:0;width:100%;height:100%;
+  pointer-events:none;opacity:.85;z-index:4;
+}
+
+/* ---------- 输入条：竖屏默认 ---------- */
+#view-channel .dm-bar{
+  position:relative;
+  padding:8px 10px 10px;   /* 这根条在卡片内部，不是屏幕底部，不吃 safe-area */
+  background:var(--bg-surface);
+  box-shadow:inset 0 1px 0 var(--border-hairline);
+  min-width:0;
+}
+#view-channel .dm-edit{
+  display:flex;align-items:center;gap:8px;
+  min-width:0;
+}
+#view-channel .dm-inp{
+  flex:1 1 auto;min-width:0;height:44px;
+  padding:0 16px;border:0;border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);color:var(--text-primary);
+  font-size:15px;line-height:44px;letter-spacing:-.005em;
+  transition:background var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
+#view-channel .dm-inp::placeholder{color:var(--text-muted);}
+#view-channel .dm-inp:focus{
+  outline:none;background:var(--bg-surface-hover);
+  box-shadow:0 0 0 1.5px rgba(107,138,253,.55);
+}
+html[data-theme="dark"] #view-channel .dm-inp:focus{box-shadow:0 0 0 1.5px rgba(168,199,250,.6);}
+
+#view-channel .dm-send{
+  flex:0 0 auto;height:44px;min-width:64px;padding:0 16px;
+  border-radius:var(--r-pill);
+  background:var(--accent);color:var(--accent-ink);
+  font-size:14px;font-weight:600;letter-spacing:-.005em;
+  transition:transform var(--dur) var(--ease),filter var(--dur) var(--ease),opacity var(--dur) var(--ease);
+}
+#view-channel .dm-send:hover{filter:brightness(1.06);}
+#view-channel .dm-send:active{transform:scale(.98);}
+#view-channel .dm-send:disabled{opacity:.55;}
+
+#view-channel .dm-gear,
+#view-channel .dm-fold{
+  flex:0 0 auto;width:44px;height:44px;
+  display:grid;place-items:center;border-radius:var(--r-pill);
+  color:var(--text-secondary);
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-channel .dm-gear:hover,
+#view-channel .dm-fold:hover{background:var(--bg-surface-tonal);color:var(--text-primary);}
+#view-channel .dm-gear:active,
+#view-channel .dm-fold:active{transform:scale(.94);}
+#view-channel .dm-gear svg,
+#view-channel .dm-fold svg{width:20px;height:20px;}
+#view-channel .dm-gear[aria-expanded="true"]{background:var(--accent-soft);color:var(--accent);}
+
+/* 竖屏：胶囊与收起键都不出现 */
+#view-channel .dm-pill{display:none;}
+#view-channel .dm-fold{display:none;}
+
+/* 竖屏「单击沉浸」只收播放器覆盖层；输入条是卡片底部的常驻行，不跟着消失
+   （横屏的收起在下面的 .is-fs 规则里，用胶囊开合） */
+/* 防误触锁屏：整条输入都不接受点击 */
+#view-channel.is-locked .dm-bar,
+#view-channel .ch-stage.is-locked .dm-bar{
+  opacity:0;pointer-events:none;
+  max-height:0;padding-top:0;padding-bottom:0;overflow:hidden;
+}
+
+/* ---------- 未登录提示 ---------- */
+#view-channel .dm-note{
+  display:flex;align-items:center;gap:10px;
+  margin:8px 2px 0;font-size:12.5px;line-height:1.4;color:var(--text-muted);
+}
+#view-channel .dm-note[hidden]{display:none;}
+#view-channel .dm-note__btn{
+  height:44px;padding:0 14px;border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);color:var(--text-secondary);
+  font-size:12.5px;font-weight:600;
+}
+#view-channel .dm-note__btn:active{transform:scale(.97);}
+
+/* ---------- 设置面板 ---------- */
+#view-channel .dm-pop{
+  position:absolute;left:0;bottom:calc(100% + 8px);z-index:12;
+  width:min(400px,calc(100vw - 24px));
+  max-height:min(66vh,380px);overflow:auto;overscroll-behavior:contain;
+  padding:12px 14px 10px;
+  border-radius:var(--r-inner);
+  background:var(--bg-surface);
+  box-shadow:var(--shadow-float);
+  isolation:isolate;
+}
+#view-channel .dm-pop[hidden]{display:none;}
+#view-channel .dm-pop__head{
+  display:flex;align-items:center;gap:10px;min-height:36px;
+  padding-bottom:6px;
+}
+#view-channel .dm-pop__head b{font-size:14px;font-weight:600;letter-spacing:-.01em;}
+#view-channel .dm-pop__head span{
+  flex:1 1 auto;min-width:0;text-align:right;
+  font-size:11.5px;color:var(--text-muted);
+}
+#view-channel .dm-pop__x{
+  flex:0 0 auto;width:44px;height:44px;margin:-4px -6px -4px 0;
+  display:grid;place-items:center;border-radius:var(--r-pill);color:var(--text-secondary);
+}
+#view-channel .dm-pop__x:hover{background:var(--bg-surface-tonal);color:var(--text-primary);}
+#view-channel .dm-pop__x svg{width:18px;height:18px;}
+
+#view-channel .dm-prow{
+  display:grid;grid-template-columns:74px minmax(0,1fr);
+  align-items:center;gap:10px;min-height:44px;
+}
+#view-channel .dm-prow + .dm-prow{box-shadow:inset 0 1px 0 var(--border-hairline);}
+#view-channel .dm-plabel{
+  font-size:13px;font-weight:500;color:var(--text-secondary);
+  white-space:nowrap;
+}
+#view-channel .dm-pctrl{
+  display:flex;align-items:center;justify-content:flex-end;
+  gap:8px;min-width:0;flex-wrap:wrap;
+}
+
+/* 开关（自己实现，触控 44） */
+#view-channel .dm-sw{
+  position:relative;flex:0 0 auto;width:52px;height:44px;border-radius:var(--r-pill);
+}
+#view-channel .dm-sw::before{
+  content:"";position:absolute;left:4px;right:4px;top:9px;height:26px;
+  border-radius:var(--r-pill);background:var(--bg-surface-tonal);
+  box-shadow:inset 0 0 0 1px var(--border-hairline);
+  transition:background var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
+#view-channel .dm-sw::after{
+  content:"";position:absolute;left:8px;top:13px;width:18px;height:18px;
+  border-radius:var(--r-pill);background:var(--text-muted);
+  transition:transform var(--dur) var(--ease),background var(--dur) var(--ease);
+}
+#view-channel .dm-sw[aria-checked="true"]::before{background:var(--accent);box-shadow:none;}
+#view-channel .dm-sw[aria-checked="true"]::after{transform:translateX(18px);background:#fff;}
+
+/* 滑杆 */
+#view-channel .dm-rng{
+  flex:1 1 96px;min-width:80px;max-width:180px;height:44px;
+  accent-color:var(--accent);
+  background:transparent;
+}
+#view-channel .dm-val{
+  flex:0 0 42px;text-align:right;
+  font-size:12.5px;color:var(--text-muted);
+  font-variant-numeric:tabular-nums;
+}
+
+/* 药丸选择 */
+#view-channel .dm-chips{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end;}
+#view-channel .dm-chip{
+  min-width:44px;height:44px;padding:0 12px;border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);color:var(--text-secondary);
+  font-size:13px;font-weight:500;white-space:nowrap;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),box-shadow var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-channel .dm-chip:hover{background:var(--bg-surface-hover);color:var(--text-primary);}
+#view-channel .dm-chip:active{transform:scale(.97);}
+#view-channel .dm-chip[aria-pressed="true"]{
+  background:var(--accent-soft);color:var(--accent);
+  box-shadow:inset 0 0 0 1px rgba(107,138,253,.28);
+}
+html[data-theme="dark"] #view-channel .dm-chip[aria-pressed="true"]{background:var(--accent-tonal);color:var(--accent);}
+
+/* ---------- 横屏 / 全屏：收起为胶囊，点开才是输入行 ----------
+   横屏只有 390 高，控件统一「视觉缩小、命中区不缩」：
+   · 实心色块/图标把盒子画小一圈，命中区用 ::after 透明外扩回 44（≥44 硬指标）
+   · 输入框盒子留 44，背景用 background-clip:content-box 只画 36 高（外圈透明=命中区）
+   · 竖屏一条都不沾（全部在 .is-fs 下） */
+#view-channel.is-fs .dm-bar{
+  position:absolute;left:calc(12px + env(safe-area-inset-left,0px));right:auto;
+  bottom:calc(150px + env(safe-area-inset-bottom,0px));
+  z-index:11;   /* 高于手势层的横屏 chrome(9)、内核控制条(8)，低于 sheet(96) */
+  width:auto;max-width:min(560px,calc(100vw - 24px));
+  padding:0;background:transparent;box-shadow:none;
+  transition:opacity 200ms var(--ease),transform 200ms var(--ease);
+}
+#view-channel.is-fs .dm-bar.is-open{width:min(560px,calc(100vw - 24px));}
+
+#view-channel.is-fs .dm-pill{
+  position:relative;
+  display:inline-flex;align-items:center;gap:6px;
+  height:34px;padding:0 14px;border-radius:var(--r-pill);
+  background:rgba(10,12,16,.58);color:#fff;
+  font-size:12px;font-weight:600;letter-spacing:-.005em;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.16),0 8px 24px -14px rgba(0,0,0,.9);
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+/* 34 的视觉，44 的命中区（上下各外扩 5px，透明不画） */
+#view-channel.is-fs .dm-pill::after{content:"";position:absolute;left:-4px;right:-4px;top:-5px;bottom:-5px;}
+#view-channel.is-fs .dm-pill:hover{background:rgba(18,22,28,.78);}
+#view-channel.is-fs .dm-pill:active{transform:scale(.98);}
+#view-channel.is-fs .dm-pill svg{width:16px;height:16px;}
+
+#view-channel.is-fs .dm-bar:not(.is-open) .dm-edit{display:none;}
+#view-channel.is-fs .dm-bar.is-open .dm-pill{display:none;}
+/* 输入行：整条 44（原 54），子控件命中盒仍是 44，只是把实心胶囊画小 */
+#view-channel.is-fs .dm-edit{
+  width:100%;height:44px;padding:0 4px;gap:6px;
+  border-radius:var(--r-pill);
+  background:rgba(12,14,18,.9);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),0 14px 36px -16px rgba(0,0,0,.85);
+}
+/* 输入框：盒子 44（命中区），background-clip 只画中间 36 高的一枚胶囊 */
+#view-channel.is-fs .dm-inp{
+  height:44px;padding:4px 12px;line-height:36px;font-size:13px;
+  background-color:rgba(255,255,255,.12);background-clip:content-box;
+  color:#fff;box-shadow:none;
+}
+#view-channel.is-fs .dm-inp::placeholder{color:rgba(255,255,255,.52);}
+#view-channel.is-fs .dm-inp:focus{
+  background-color:rgba(255,255,255,.18);background-clip:content-box;
+  box-shadow:0 0 0 1.5px rgba(168,199,250,.7);
+}
+#view-channel.is-fs .dm-gear,
+#view-channel.is-fs .dm-fold{
+  position:relative;width:44px;height:34px;color:rgba(255,255,255,.8);
+}
+/* 齿轮/收起：画 34 的圆（hover/展开都只点亮这枚圆），竖向外扩 5px 把命中区补到 44 高；
+   盒子本来就有 44 宽，不再横向外扩——否则会抢隔壁按钮的边 */
+#view-channel.is-fs .dm-gear::before,
+#view-channel.is-fs .dm-fold::before{
+  content:"";position:absolute;left:50%;top:50%;
+  width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:var(--r-pill);
+  background:transparent;transition:background var(--dur) var(--ease);
+}
+#view-channel.is-fs .dm-gear::after,
+#view-channel.is-fs .dm-fold::after{
+  content:"";position:absolute;left:0;right:0;top:-5px;bottom:-5px;
+}
+#view-channel.is-fs .dm-gear svg,
+#view-channel.is-fs .dm-fold svg{width:18px;height:18px;}
+#view-channel.is-fs .dm-gear:hover,
+#view-channel.is-fs .dm-fold:hover{background:transparent;color:#fff;}
+#view-channel.is-fs .dm-gear:hover::before,
+#view-channel.is-fs .dm-fold:hover::before{background:rgba(255,255,255,.14);}
+#view-channel.is-fs .dm-gear[aria-expanded="true"]{background:transparent;color:#fff;}
+#view-channel.is-fs .dm-gear[aria-expanded="true"]::before{background:rgba(255,255,255,.18);}
+#view-channel.is-fs .dm-fold{display:grid;}
+/* 横屏里未登录提示只用 toast，别在视频上留一行小字 */
+#view-channel.is-fs .dm-note{display:none;}
+/* 发送键：30 的视觉胶囊，上下各外扩 7px 命中回 44（宽度 ≥52 已达标） */
+#view-channel.is-fs .dm-send{
+  position:relative;height:30px;min-width:52px;padding:0 12px;font-size:12px;
+}
+#view-channel.is-fs .dm-send::after{content:"";position:absolute;left:0;right:0;top:-7px;bottom:-7px;}
+
+/* 全屏设置面板：横屏高度只有 390，用 fixed 左上角侧卡，不被舞台裁掉；
+   面板打开时把输入行/胶囊先收起来，避免两个浮层打架 */
+#view-channel.is-fs .dm-bar.is-pop .dm-edit,
+#view-channel.is-fs .dm-bar.is-pop .dm-pill{display:none;}
+/* 5 行 × 40 = 200，竖排再加上头/内边距就高过「chrome 上沿 − 8」，
+   所以横屏把 5 行排成两列（3 行 × 40），面板才真正放得下、且一滴都不压进度条。
+   竖屏仍是原来的纵向面板，一条规则都不改。 */
+#view-channel.is-fs .dm-pop{
+  position:fixed;
+  left:calc(12px + env(safe-area-inset-left,0px));
+  top:auto;right:auto;
+  /* 底边钉在横屏 chrome 上沿 8px（JS 用实测 chrome 高度改写这个值），面板只向上长 */
+  bottom:calc(164px + env(safe-area-inset-bottom,0px));
+  width:min(560px,calc(100vw - 24px));
+  max-height:calc(100vh - 64px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+  padding:8px 12px;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  column-gap:12px;align-content:start;
+  background:rgba(16,18,22,.97);
+  color:#F2F4F7;
+  z-index:96;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),0 20px 48px -18px rgba(0,0,0,.9);
+}
+#view-channel.is-fs .dm-pop[hidden]{display:none;}
+#view-channel.is-fs .dm-pop__head{grid-column:1/-1;}
+/* 面板内部：行 44/48 → 40、标签 13→12、值 12.5→11、滑块轨道 4→3、内边距收紧
+   ——行高归行高，行里的开关/滑杆/芯片命中盒仍保持 44（盒子 44 + 负外边距让行仍 40） */
+#view-channel.is-fs .dm-pop__head{min-height:28px;padding-bottom:4px;gap:8px;}
+#view-channel.is-fs .dm-pop__head b{font-size:13px;}
+#view-channel.is-fs .dm-pop__head span{font-size:11px;}
+#view-channel.is-fs .dm-pop__x{
+  position:relative;z-index:3;width:32px;height:32px;margin:-2px -6px -2px 0;
+}
+/* 关闭键 32 的视觉；命中 44×44：左右各 6，上借面板内边距 8、下借首行 4 */
+#view-channel.is-fs .dm-pop__x::after{content:"";position:absolute;left:-6px;right:-6px;top:-8px;bottom:-4px;}
+#view-channel.is-fs .dm-pop__x svg{width:16px;height:16px;}
+#view-channel.is-fs .dm-prow{grid-template-columns:62px minmax(0,1fr);gap:8px;min-height:40px;}
+#view-channel.is-fs .dm-plabel{font-size:12px;}
+#view-channel.is-fs .dm-pctrl{gap:6px;}
+#view-channel.is-fs .dm-val{flex-basis:38px;font-size:11px;}
+#view-channel.is-fs .dm-sw{width:48px;margin:-2px 0;}
+#view-channel.is-fs .dm-rng{
+  height:44px;margin:-2px 0;
+  -webkit-appearance:none;appearance:none;background:transparent;
+}
+#view-channel.is-fs .dm-rng::-webkit-slider-runnable-track{
+  height:3px;border-radius:9999px;background:rgba(255,255,255,.26);
+}
+#view-channel.is-fs .dm-rng::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:12px;height:12px;margin-top:-4.5px;border:0;border-radius:50%;
+  background:#A8C7FA;box-shadow:0 1px 4px rgba(0,0,0,.5);
+}
+#view-channel.is-fs .dm-rng:focus{outline:none;}
+#view-channel.is-fs .dm-rng:focus::-webkit-slider-thumb{box-shadow:0 0 0 3px rgba(168,199,250,.35);}
+#view-channel.is-fs .dm-chip{
+  position:relative;min-width:44px;height:32px;padding:0 10px;font-size:12px;
+}
+/* 芯片 32 的视觉，上下各外扩 6px 命中回 44（左右各 2px，相邻芯片刚好相接不重叠） */
+#view-channel.is-fs .dm-chip::after{content:"";position:absolute;left:-2px;right:-2px;top:-6px;bottom:-6px;}
+#view-channel.is-fs .dm-pop__head b{color:#F2F4F7;}
+#view-channel.is-fs .dm-pop__head span,
+#view-channel.is-fs .dm-plabel,
+#view-channel.is-fs .dm-val{color:rgba(242,244,247,.66);}
+#view-channel.is-fs .dm-pop__x{color:rgba(242,244,247,.7);}
+#view-channel.is-fs .dm-pop__x:hover{background:rgba(255,255,255,.12);color:#fff;}
+#view-channel.is-fs .dm-sw::before{background:rgba(255,255,255,.16);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);}
+#view-channel.is-fs .dm-chip{background-color:rgba(255,255,255,.12);color:rgba(242,244,247,.8);}
+#view-channel.is-fs .dm-chip:hover{background-color:rgba(255,255,255,.2);color:#fff;}
+#view-channel.is-fs .dm-chip[aria-pressed="true"],
+html[data-theme="dark"] #view-channel.is-fs .dm-chip[aria-pressed="true"]{
+  background-color:rgba(168,199,250,.24);color:#CDE0FF;box-shadow:inset 0 0 0 1px rgba(168,199,250,.4);
+}
+/* 两列布局里逐行的发丝线会错位：横屏改成表头下一条，行间留白分层 */
+#view-channel.is-fs .dm-prow + .dm-prow{box-shadow:none;}
+#view-channel.is-fs .dm-pop__head{box-shadow:inset 0 -1px 0 rgba(255,255,255,.08);}
+
+/* 播放器把覆盖层收起来时（.is-away），没打开的输入条一起淡出 */
+#view-channel.is-fs.is-away .dm-bar:not(.is-open):not(.is-pop){
+  opacity:0;pointer-events:none;transform:translateY(6px);
+}
+
+/* ---------- 窄屏 ---------- */
+@media (max-width:360px){
+  #view-channel .dm-bar{padding-left:8px;padding-right:8px;}
+  #view-channel .dm-edit{gap:6px;}
+  #view-channel .dm-inp{padding:0 12px;font-size:14px;}
+  #view-channel .dm-send{min-width:56px;padding:0 12px;}
+  #view-channel .dm-prow{grid-template-columns:64px minmax(0,1fr);gap:8px;}
+  #view-channel .dm-chip{padding:0 10px;font-size:12.5px;}
+}
+
+/* ---------- 减少动效 ---------- */
+html.reduce-motion #view-channel .dm-bar,
+html.reduce-motion #view-channel .dm-inp,
+html.reduce-motion #view-channel .dm-send,
+html.reduce-motion #view-channel .dm-gear,
+html.reduce-motion #view-channel .dm-fold,
+html.reduce-motion #view-channel.is-fs .dm-gear::before,
+html.reduce-motion #view-channel.is-fs .dm-fold::before,
+html.reduce-motion #view-channel .dm-chip,
+html.reduce-motion #view-channel .dm-sw::before,
+html.reduce-motion #view-channel .dm-sw::after,
+html.reduce-motion #view-channel .dm-pill{
+  transition:none;
+}

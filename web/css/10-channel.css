@@ -1,0 +1,544 @@
+/* ============================================================
+   10-channel.css · 频道视图（播放卡片 + 节目带）
+   规则：所有选择器以 #view-channel 开头；层级靠 surface 明度差，
+   不用粗边框、不用玻璃模糊、不铺品牌渐变（渐变只给进度细线与品牌标）。
+   ============================================================ */
+#view-channel{
+  /* 舞台不再是一整块纯黑：跟随主题的 surface 明度，空闲态像一张安静的卡 */
+  --ch-ink:var(--text-primary);
+  --ch-ink-dim:var(--text-secondary);
+}
+
+/* ---------- 布局 ---------- */
+#view-channel .ch{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--sp-5);min-width:0;padding:var(--sp-2) 0 var(--sp-2);}
+#view-channel .ch__main{min-width:0;}
+@media (min-width:1000px){
+  #view-channel .ch{grid-template-columns:minmax(0,1.16fr) minmax(0,.84fr);gap:var(--sp-6);align-items:start;}
+  #view-channel .ch__main{position:sticky;top:74px;}
+}
+
+/* ---------- 播放卡片 ---------- */
+#view-channel .ch-stage{
+  position:relative;background:var(--bg-surface);border-radius:var(--r-card);
+  box-shadow:var(--shadow-ambient);overflow:hidden;min-width:0;
+  transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
+@media (hover:hover){
+  #view-channel .ch-stage:hover{transform:translateY(-2px);box-shadow:var(--shadow-elevated);}
+}
+
+/* ---------- 画面 ---------- */
+#view-channel .ch-media{
+  position:relative;aspect-ratio:16/9;overflow:hidden;
+  background:radial-gradient(120% 120% at 50% 0%,var(--bg-surface-tonal),var(--bg-surface) 72%);
+  box-shadow:inset 0 -1px 0 var(--border-hairline);
+  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none;isolation:isolate;
+}
+#view-channel .ch-media video{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  display:block;background:transparent;z-index:1;
+}
+#view-channel .ch-poster{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  opacity:.34;z-index:0;pointer-events:none;
+}
+#view-channel .ch-vignette{
+  position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(90% 70% at 50% 0%,rgba(66,133,244,.08),transparent 62%);
+}
+#view-channel .ch-dm{
+  position:absolute;inset:0;width:100%;height:100%;z-index:4;
+  pointer-events:none;opacity:.85;
+}
+/* 切清晰度时的定格帧：铺住画面，等新流第一帧上屏再撤（不黑屏） */
+#view-channel .ch-hold{
+  position:absolute;inset:0;width:100%;height:100%;z-index:3;
+  object-fit:contain;background:#000;pointer-events:none;
+}
+
+/* ---------- 锁屏（防误触） ----------
+   锁上以后：画面里所有控件、下方的控制条一律不接收事件，
+   只留 #ch-shield 一层挡板；用户点一下才露出那把锁。 */
+#view-channel .ch-shield{
+  position:absolute;inset:0;z-index:7;background:transparent;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;cursor:default;
+}
+#view-channel .ch-lock{
+  position:absolute;top:10px;left:10px;z-index:8;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:44px;height:44px;border-radius:var(--r-pill);
+  color:#fff;background:rgba(8,10,14,.5);
+  opacity:0;visibility:hidden;transform:scale(.9);
+  transition:opacity 180ms var(--ease),transform 180ms var(--ease),background var(--dur) var(--ease);
+}
+#view-channel .ch-lock:hover{background:rgba(8,10,14,.74);}
+#view-channel .ch-lock:active{transform:scale(.94);}
+#view-channel .ch-stage.is-locked.is-lockhint .ch-lock{opacity:1;visibility:visible;transform:none;}
+#view-channel .ch-lockico{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;}
+#view-channel .ch-lockico > svg{
+  display:block;opacity:0;transform:scale(.72);
+  transition:opacity 150ms var(--ease),transform 150ms var(--ease);
+}
+#view-channel .ch-lock[data-state="unlocked"] .ch-lockico--off > svg,
+#view-channel .ch-lock[data-state="locked"] .ch-lockico--on > svg{opacity:1;transform:scale(1);}
+
+#view-channel .ch-stage.is-locked .ch-media{cursor:default;}
+#view-channel .ch-stage.is-locked .ch-fs,
+#view-channel .ch-stage.is-locked .ch-idle{opacity:0;visibility:hidden;pointer-events:none;}
+#view-channel .ch-stage.is-locked .ch-body{opacity:0;pointer-events:none;}
+#view-channel .ch-stage.is-locked .ch-boost,
+#view-channel .ch-stage.is-locked .ch-hint{opacity:0;pointer-events:none;}
+#view-channel .ch-stage.is-locked .ch-loading,
+#view-channel .ch-stage.is-locked .ch-stall{pointer-events:none;}
+
+/* 原生位置停住时的缓冲态提示（不暂停、不跳位置，只是告诉用户声音在等） */
+#view-channel .ch-stall{
+  /* 让开正中的提示位（hint/loading 都在 50%），往下错开一行，两个 pill 不会叠字 */
+  position:absolute;left:50%;top:calc(50% + 44px);transform:translate(-50%,-50%);z-index:9;
+  display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 14px;
+  border-radius:var(--r-pill);background:rgba(8,10,14,.62);color:#fff;
+  font-size:12px;font-weight:550;letter-spacing:.01em;white-space:nowrap;
+  pointer-events:none;
+}
+#view-channel .ch-stall i{
+  width:12px;height:12px;border-radius:50%;flex:none;
+  border:2px solid rgba(255,255,255,.26);border-top-color:#fff;
+  animation:chSpin .9s linear infinite;
+}
+
+/* ---------- 空闲 / 空状态 ---------- */
+#view-channel .ch-idle{
+  position:absolute;inset:0;z-index:6;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;padding:var(--sp-4);text-align:center;color:var(--ch-ink);
+  transition:opacity 260ms var(--ease),visibility 260ms var(--ease);
+}
+#view-channel .ch-stage:not(.is-idle) .ch-idle{opacity:0;visibility:hidden;pointer-events:none;}
+#view-channel .ch-mark{
+  width:44px;height:44px;border-radius:14px;display:grid;place-items:center;
+  background:var(--bg-surface-tonal);color:var(--accent);margin-bottom:10px;
+  box-shadow:inset 0 0 0 1px var(--border-hairline);
+}
+#view-channel .ch-mark svg{width:20px;height:20px;}
+#view-channel .ch-idle__line{
+  max-width:min(22ch,88%);font-size:clamp(16px,2.1vw,20px);line-height:1.34;
+  letter-spacing:-.025em;font-weight:600;color:var(--ch-ink);text-wrap:balance;
+}
+#view-channel .ch-cta{
+  flex:0 0 auto;margin-top:12px;height:44px;min-height:44px;padding:0 20px;
+  font-size:13.5px;font-weight:600;
+}
+#view-channel .ch-cta svg{width:18px;height:18px;}
+#view-channel .ch-cta:active{transform:scale(.98);}
+
+/* ---------- 画面角标 ---------- */
+#view-channel .ch-fs{
+  position:absolute;top:10px;right:10px;z-index:8;width:44px;height:44px;
+  color:#fff;background:rgba(8,10,14,.46);border-radius:var(--r-pill);
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-channel .ch-fs:hover{background:rgba(8,10,14,.72);color:#fff;}
+#view-channel .ch-fs:active{transform:scale(.94);}
+#view-channel .ch-fs svg{width:20px;height:20px;}
+#view-channel .ch-loading{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;
+  display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:var(--r-pill);
+  background:rgba(8,10,14,.66);color:var(--ch-ink);font-size:12px;letter-spacing:.01em;
+}
+#view-channel .ch-loading i{
+  width:13px;height:13px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.26);border-top-color:#fff;
+  animation:chSpin .8s linear infinite;
+}
+#view-channel .ch-boost{
+  position:absolute;left:12px;bottom:12px;z-index:9;
+  display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border-radius:var(--r-pill);
+  background:rgba(8,10,14,.62);color:var(--ch-ink);font-size:12px;font-weight:600;
+}
+#view-channel .ch-boost b{color:#fff;font-variant-numeric:tabular-nums;}
+#view-channel .ch-hint{
+  position:absolute;left:50%;top:50%;z-index:9;transform:translate(-50%,-50%) scale(.94);
+  padding:8px 14px;border-radius:var(--r-pill);background:rgba(8,10,14,.68);
+  color:#fff;font-size:13px;font-weight:550;opacity:0;pointer-events:none;
+  transition:opacity 160ms var(--ease),transform 160ms var(--ease);
+}
+#view-channel .ch-hint.is-on{opacity:1;transform:translate(-50%,-50%) scale(1);}
+
+/* ---------- 信息区：展开态（8.1 平滑展开） ----------
+   用户的话：「点开一期…从这张跳到那张，这样的动画有点僵硬，优化一下」。
+   收起 = max-height:0 + opacity:0 + 上下 padding 归零，全部交给 CSS 过渡，不逐帧写高度；
+   有 item 时 30-player 给 #ch-stage 挂 .is-expanded，0→1 只在这一下发生：
+   暂停/恢复、切清晰度、切倍速时这个 class 一直是 true → 展开过渡不会重播。
+   节奏：整块 320ms var(--ease)，传输条再晚 80ms 淡入并上移 4px，像「长出来」。
+   横屏（.is-fs）仍走下面全屏那套规则（.rr-shown 管显隐），这里只管竖屏。 */
+#view-channel:not(.is-fs) .ch-body{
+  padding:0 var(--sp-4) 0;min-width:0;
+  max-height:0;opacity:0;overflow:hidden;
+  visibility:hidden;pointer-events:none;
+  transition:max-height 320ms var(--ease),opacity 220ms var(--ease),
+             padding-top 320ms var(--ease),padding-bottom 320ms var(--ease),
+             transform 320ms var(--ease),visibility 0s linear 320ms;
+}
+#view-channel:not(.is-fs) .ch-stage.is-expanded .ch-body{
+  max-height:420px;opacity:1;visibility:visible;pointer-events:auto;
+  padding-top:12px;padding-bottom:var(--sp-4);
+  transition-delay:0s;
+}
+@media (min-width:768px){
+  #view-channel:not(.is-fs) .ch-body{padding:0 var(--sp-5) 0;}
+  #view-channel:not(.is-fs) .ch-stage.is-expanded .ch-body{padding-top:16px;padding-bottom:var(--sp-5);}
+}
+/* 单击画面 = 显隐覆盖层；播放中 3.5s 自动淡出。
+   收起时整块塌掉（max-height→0），只留画面，不在卡片里留一条空白。
+   竖屏由本文件管显隐；横屏把 .ch-body 交给 15-gesture.css 的 .rr-shown，避免两边抢。 */
+#view-channel:not(.is-fs) .ch-stage.is-away .ch-body,
+#view-channel:not(.is-fs) .ch-stage.is-locked .ch-body{
+  max-height:0;padding-top:0;padding-bottom:0;visibility:hidden;
+  opacity:0;transform:translateY(8px);pointer-events:none;
+}
+/* 横屏里锁屏挡板让位给手势层自带的解锁按钮 */
+#view-channel.is-fs .ch-shield{display:none;}
+#view-channel .ch-stage.is-away .ch-fs,
+#view-channel .ch-stage.is-away .ch-boost{opacity:0;pointer-events:none;}
+#view-channel .ch-head{display:flex;align-items:flex-start;gap:var(--sp-2);min-width:0;}
+#view-channel .ch-head__txt{flex:1 1 auto;min-width:0;}
+#view-channel .ch-ep{flex:none;display:flex;align-items:center;gap:2px;margin:-6px -8px 0 0;}
+#view-channel .ch-epbtn{color:var(--text-muted);}
+#view-channel .ch-epbtn:hover{color:var(--text-primary);background:var(--bg-surface-tonal);}
+#view-channel .ch-epbtn svg{width:20px;height:20px;}
+#view-channel .ch-title{
+  margin:0;font-size:clamp(18px,2.2vw,23px);line-height:1.24;
+  letter-spacing:-.025em;font-weight:600;text-wrap:balance;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+#view-channel .ch-meta{margin-top:4px;font-size:12.5px;line-height:1.6;color:var(--text-muted);}
+
+/* ---------- 进度 ---------- */
+#view-channel .ch-prog{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;
+  gap:10px;margin-top:4px;
+}
+#view-channel .ch-time{
+  font-size:11.5px;color:var(--text-secondary);font-variant-numeric:tabular-nums;
+  min-width:34px;line-height:1;
+}
+#view-channel .ch-time:last-child{text-align:right;}
+#view-channel .ch-track{
+  position:relative;height:44px;display:flex;align-items:center;
+  cursor:pointer;touch-action:none;border-radius:8px;outline-offset:4px;
+}
+#view-channel .ch-rail{
+  position:relative;display:block;height:4px;width:100%;border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);overflow:hidden;
+}
+#view-channel .ch-buf{
+  position:absolute;left:0;top:0;bottom:0;width:0;border-radius:inherit;
+  background:var(--border-strong);transition:width 360ms linear;
+}
+#view-channel .ch-fill{
+  position:absolute;left:0;top:0;bottom:0;width:0;border-radius:inherit;
+  background:var(--gemini-gradient);transition:width 360ms linear;
+}
+#view-channel .ch-knob{
+  position:absolute;top:50%;left:0;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;
+  border-radius:50%;background:var(--accent);pointer-events:none;
+  box-shadow:0 0 0 3px var(--bg-surface),0 1px 4px rgba(0,0,0,.32);
+  transition:left 360ms linear,transform var(--dur) var(--ease);
+}
+#view-channel .ch-track:hover .ch-knob,
+#view-channel .ch-track:focus-visible .ch-knob{transform:scale(1.25);}
+/* 拖动时必须跟手：去掉补间，缩略图/气泡由 JS 驱动 */
+#view-channel .ch-track.is-dragging .ch-fill,
+#view-channel .ch-track.is-dragging .ch-knob{transition:none;}
+#view-channel .ch-track.is-dragging .ch-knob{transform:scale(1.35);}
+#view-channel .ch-bubble{
+  position:absolute;left:50%;bottom:calc(50% + 12px);transform:translateX(-50%);
+  padding:4px 9px;border-radius:8px;background:var(--bg-surface);
+  box-shadow:var(--shadow-elevated);color:var(--text-primary);
+  font-size:11px;line-height:1.2;white-space:nowrap;
+}
+
+/* ---------- 传输条 ---------- */
+#view-channel .ch-transport{
+  margin-top:8px;display:flex;align-items:center;justify-content:space-between;
+  gap:4px;padding:6px;border-radius:var(--r-pill);background:var(--bg-surface-tonal);
+}
+/* 传输条跟着信息区长出来：展开时晚 80ms 淡入 + 上浮 4px；收起不延迟（退场要爽快） */
+#view-channel:not(.is-fs) .ch-transport{
+  opacity:0;transform:translateY(4px);
+  transition:opacity 240ms var(--ease),transform 240ms var(--ease);
+}
+#view-channel:not(.is-fs) .ch-stage.is-expanded .ch-transport{
+  opacity:1;transform:none;transition-delay:80ms;
+}
+#view-channel .ch-tg{display:flex;align-items:center;gap:2px;min-width:0;}
+#view-channel .ch-tg--end{margin-left:auto;}
+#view-channel .ch-tbtn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:44px;height:44px;border-radius:var(--r-pill);flex:none;
+  color:var(--text-secondary);
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-channel .ch-tbtn:hover{background:var(--bg-surface);color:var(--text-primary);}
+#view-channel .ch-tbtn:active{transform:scale(.94);}
+#view-channel .ch-tbtn svg{width:20px;height:20px;}
+#view-channel .ch-tbtn[aria-pressed="false"]{color:var(--text-muted);opacity:.55;}
+#view-channel .ch-rate{
+  width:auto;min-width:44px;padding:0 9px;font-size:13px;font-weight:600;
+  letter-spacing:-.01em;color:var(--text-secondary);
+}
+#view-channel .ch-play{
+  position:relative;            /* 两个叠放图标以它为定位基准 */
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:56px;height:56px;border-radius:var(--r-pill);
+  background:var(--accent);color:var(--accent-ink);
+  box-shadow:0 8px 20px -10px rgba(11,87,208,.55);
+  transition:transform var(--dur) var(--ease),filter var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
+#view-channel .ch-play svg{width:24px;height:24px;}
+#view-channel .ch-play:hover{transform:translateY(-1px);filter:brightness(1.05);}
+#view-channel .ch-play:active{transform:scale(.98);}
+
+/* 播放/暂停图标：两个 SVG 叠在 56×56 的圆钮里做交叉过渡。
+   只动 transform/opacity（不参与布局），按钮尺寸固定 → 零布局跳动；
+   data-state 由 30-player.js 翻；减少动效时由 .is-noanim 直接切。 */
+#view-channel .ch-ico{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;}
+#view-channel .ch-ico > svg{
+  display:block;opacity:0;transform:scale(.72);
+  transition:opacity 150ms cubic-bezier(.2,.8,.2,1),transform 150ms cubic-bezier(.2,.8,.2,1);
+}
+#view-channel .ch-play[data-state="playing"] .ch-ico--pause > svg,
+#view-channel .ch-play[data-state="paused"] .ch-ico--play > svg{opacity:1;transform:scale(1);}
+#view-channel .ch-play.is-noanim .ch-ico > svg{transition:none;}
+
+/* ---------- 节目带 ---------- */
+#view-channel .ch-band{min-width:0;}
+#view-channel .ch-band__head{display:flex;align-items:flex-end;gap:var(--sp-3);margin:2px 0 var(--sp-3);}
+#view-channel .ch-band__text{min-width:0;}
+#view-channel .ch-band__text .h2{letter-spacing:-.025em;}
+#view-channel .ch-band__sub{margin-top:2px;font-size:12.5px;line-height:1.6;}
+#view-channel .ch-band__count{
+  margin-left:auto;flex:none;font-size:11.5px;color:var(--text-muted);
+  padding-bottom:3px;white-space:nowrap;
+}
+
+#view-channel .ch-filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:var(--sp-3);}
+#view-channel .ch-filters .chip{
+  height:44px;padding:0 11px;font-size:13px;font-weight:550;letter-spacing:-.01em;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-channel .ch-filters .chip:active{transform:scale(.97);}
+
+#view-channel .ch-list{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none;}
+#view-channel .ch-item{display:block;min-width:0;}
+#view-channel .ch-row{
+  display:flex;align-items:center;gap:12px;width:100%;min-height:64px;
+  padding:10px 12px;border-radius:18px;background:var(--bg-surface);
+  text-align:left;color:var(--text-primary);
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
+#view-channel .ch-row:hover{background:var(--bg-surface-hover);transform:translateY(-1px);box-shadow:var(--shadow-ambient);}
+#view-channel .ch-row:active{transform:scale(.995);}
+#view-channel .ch-row.is-on{background:var(--accent-soft);}
+#view-channel .ch-row.is-on:hover{background:var(--accent-soft);}
+#view-channel .ch-row__time{
+  flex:none;width:46px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  line-height:1.2;color:var(--text-muted);
+}
+#view-channel .ch-row__date{font-size:9.5px;letter-spacing:.02em;color:var(--text-muted);opacity:.8;}
+#view-channel .ch-row__hms{font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text-secondary);}
+#view-channel .ch-row__main{display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-width:0;}
+#view-channel .ch-row__title{font-size:14px;font-weight:550;letter-spacing:-.012em;line-height:1.35;}
+#view-channel .ch-row__sub{font-size:11.5px;line-height:1.4;color:var(--text-muted);}
+#view-channel .ch-row__dur{
+  flex:none;font-size:11.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;
+  padding-left:2px;
+}
+#view-channel .ch-row.is-on .ch-row__time,
+#view-channel .ch-row.is-on .ch-row__dur{color:var(--accent);}
+#view-channel .ch-eq{display:none;align-items:flex-end;gap:2px;width:14px;height:14px;flex:none;}
+#view-channel .ch-row.is-on .ch-eq{display:flex;}
+#view-channel .ch-row.is-on .ch-row__dur{display:none;}
+#view-channel .ch-eq i{
+  display:block;width:2px;border-radius:1px;background:var(--accent);
+  transform-origin:50% 100%;animation:chEq .9s var(--ease) infinite;
+}
+#view-channel .ch-eq i:nth-child(1){height:6px;animation-delay:-.25s;}
+#view-channel .ch-eq i:nth-child(2){height:11px;animation-delay:-.1s;}
+#view-channel .ch-eq i:nth-child(3){height:8px;animation-delay:-.4s;}
+
+/* 骨架 */
+#view-channel .ch-skel{display:flex;flex-direction:column;gap:6px;}
+#view-channel .ch-sk{
+  display:flex;align-items:center;gap:12px;height:64px;padding:10px 12px;
+  border-radius:18px;background:var(--bg-surface);
+  animation:chPulse 1.6s var(--ease) infinite;
+}
+#view-channel .ch-sk i,
+#view-channel .ch-sk b,
+#view-channel .ch-sk em{display:block;border-radius:6px;background:var(--bg-surface-tonal);flex:none;font-style:normal;}
+#view-channel .ch-sk i{width:34px;height:10px;}
+#view-channel .ch-sk b{flex:1 1 auto;height:12px;}
+#view-channel .ch-sk em{width:42px;height:10px;}
+
+/* 再看一批 */
+#view-channel .ch-more{display:flex;justify-content:center;padding:var(--sp-4) 0 var(--sp-2);}
+
+/* 空状态 */
+#view-channel .ch-empty{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:var(--sp-7) var(--sp-5);border-radius:var(--r-card);
+  background:var(--bg-surface-tonal);text-align:center;
+}
+#view-channel .ch-empty__ico{
+  width:44px;height:44px;border-radius:14px;display:grid;place-items:center;
+  background:var(--bg-surface);color:var(--text-muted);margin-bottom:4px;
+}
+#view-channel .ch-empty__ico svg{width:22px;height:22px;}
+#view-channel .ch-empty__ttl{font-size:15px;font-weight:600;letter-spacing:-.012em;}
+#view-channel .ch-empty__sub{max-width:36ch;font-size:12.5px;line-height:1.6;color:var(--text-muted);}
+#view-channel .ch-empty .btn{margin-top:var(--sp-3);}
+
+/* 图标槽 */
+#view-channel [data-ico]{display:inline-flex;align-items:center;justify-content:center;line-height:0;}
+
+/* ---------- 全屏 ---------- */
+/* 44：高于 dock(40)，低于 scrim(45)/sheet(46)/toast(50)，
+   横屏里点「倍速 · 清晰度」面板才盖得上来 */
+#view-channel.is-fs{
+  position:fixed;inset:0;z-index:44;display:flex;flex-direction:column;
+  background:#000;overflow:hidden;padding:0;margin:0;
+}
+#view-channel.is-fs .ch{display:block;height:100%;padding:0;gap:0;}
+#view-channel.is-fs .ch__main{position:static;height:100%;}
+#view-channel.is-fs .ch-stage{
+  height:100%;border-radius:0;background:#000;box-shadow:none;transform:none !important;
+}
+#view-channel.is-fs .ch-media{height:100%;aspect-ratio:auto;cursor:default;background:#000;box-shadow:none;}
+#view-channel.is-fs .ch-media video{object-fit:contain;}
+#view-channel.is-fs .ch-poster{opacity:.22;object-fit:contain;}
+#view-channel.is-fs .ch-band{display:none;}
+#view-channel.is-fs .ch-fs{top:calc(10px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));}
+#view-channel.is-fs .ch-lock{top:calc(10px + env(safe-area-inset-top,0px));left:calc(12px + env(safe-area-inset-left,0px));}
+#view-channel.is-fs .ch-body{
+  --ch-ink:#F2F4F7;--ch-ink-dim:rgba(242,244,247,.66);
+  position:absolute;left:0;right:0;bottom:0;z-index:8;
+  padding:24px calc(14px + env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) calc(14px + env(safe-area-inset-left,0px));
+  background:linear-gradient(180deg,rgba(0,0,0,.14) 0%,rgba(0,0,0,.68) 46%,rgba(0,0,0,.88) 100%);
+  color:var(--ch-ink);
+  transition:opacity 220ms var(--ease),transform 220ms var(--ease);
+}
+#view-channel.is-fs.is-away .ch-body{opacity:0;transform:translateY(10px);pointer-events:none;}
+#view-channel.is-fs .ch-eyebrow,
+#view-channel.is-fs .ch-meta{display:none;}
+#view-channel.is-fs .ch-title{color:var(--ch-ink);font-size:17px;line-height:1.25;-webkit-line-clamp:1;margin-top:0;}
+#view-channel.is-fs .ch-prog{margin-top:0;}
+#view-channel.is-fs .ch-transport{margin-top:2px;}
+#view-channel.is-fs .ch-time{color:var(--ch-ink-dim);}
+#view-channel.is-fs .ch-rail{background:rgba(255,255,255,.2);}
+#view-channel.is-fs .ch-knob{box-shadow:0 0 0 3px rgba(0,0,0,.5),0 1px 4px rgba(0,0,0,.4);}
+#view-channel.is-fs .ch-transport{background:rgba(255,255,255,.1);}
+#view-channel.is-fs .ch-tbtn{color:rgba(255,255,255,.78);}
+#view-channel.is-fs .ch-tbtn:hover{background:rgba(255,255,255,.14);color:#fff;}
+#view-channel.is-fs .ch-play{box-shadow:0 8px 24px -10px rgba(0,0,0,.8);}
+#view-channel.is-fs .ch-loading{top:auto;bottom:22%;}
+
+/* ---------- 动效 ---------- */
+@keyframes chSpin{to{transform:rotate(360deg);}}
+@keyframes chBreath{0%,100%{opacity:1;}50%{opacity:.3;}}
+@keyframes chPulse{0%,100%{opacity:1;}50%{opacity:.55;}}
+@keyframes chEq{0%,100%{transform:scaleY(.42);}50%{transform:scaleY(1);}}
+
+/* ---------- 窄屏 ---------- */
+@media (max-width:380px){
+  #view-channel .ch-transport{flex-wrap:wrap;justify-content:center;border-radius:26px;}
+  #view-channel .ch-tg--end{margin-left:0;}
+  #view-channel:not(.is-fs) .ch-stage.is-expanded .ch-body{padding:12px var(--sp-3) var(--sp-3);}
+  #view-channel .ch-row{gap:9px;padding:10px;}
+  #view-channel .ch-row__time{width:34px;}
+  #view-channel .ch-idle__sub{display:none;}
+}
+@media (min-width:768px){
+  #view-channel .ch-row__title{font-size:14.5px;}
+  #view-channel .ch-row__time{width:44px;}
+}
+
+/* ---------- 全屏横屏：传输条 / 进度条收紧（只动 #view-channel.is-fs） ----------
+   真机反馈「横屏播放时按钮太挡画面」。原则：**视觉做小、命中不缩**。
+   - 外层 button 的盒子仍是 44×44（getBoundingClientRect 不缩水）；
+     胶囊是圆的，44 框的四角像素本来会漏给父级，用透明方框 ::after 补满，
+     四个角 elementFromPoint 都能落回按钮本身。
+   - 视觉尺寸交给内层盒：播放键 .ch-ico 40、后退/前进/弹幕/队列 [data-ico] 34、
+     倍速 #ch-rate-label 26 —— 这几个都是真实可量的 DOM，不只靠截图眼看。
+   竖屏完全不命中这些选择器（都以 .is-fs 开头），圆点前的尺寸一个字节不动。 */
+
+/* 标题 17→15，元信息 12.5→11（横屏默认不显示，保留口径） */
+#view-channel.is-fs .ch-title{font-size:15px;line-height:1.25;}
+#view-channel.is-fs .ch-meta{font-size:11px;}
+
+/* 进度：线 4→3、滑块 11→10、时间 11.5→11、时间与轨道间距 10→8；轨道命中仍 44 高 */
+#view-channel.is-fs .ch-prog{gap:8px;}
+#view-channel.is-fs .ch-time{font-size:11px;}
+#view-channel.is-fs .ch-rail{height:3px;}
+#view-channel.is-fs .ch-knob{width:10px;height:10px;margin:-5px 0 0 -5px;}
+
+/* 传输条外壳：padding 6→4、圆角胶囊→18、margin-top 2→0、离底 10→8，高度 68→52（-23.5%） */
+#view-channel.is-fs .ch-body{padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));}
+#view-channel.is-fs .ch-transport{margin-top:0;gap:2px;padding:4px;border-radius:18px;}
+#view-channel.is-fs .ch-tg{gap:2px;}
+
+/* 命中盒：外层仍是 44×44（rect 不缩），再各向外放 1px 的透明方框当命中环（46×46）。
+   胶囊是圆的，44 框的四角像素本来会漏给父级（elementFromPoint 四角全打房）；
+   外放 1px 后四角稳稳落在按钮自己身上，且组内 2px 间隙正好不被邻键的环吃掉。 */
+#view-channel.is-fs .ch-tbtn,
+#view-channel.is-fs .ch-play{position:relative;}
+#view-channel.is-fs .ch-tbtn::after,
+#view-channel.is-fs .ch-play::after{content:"";position:absolute;inset:-1px;border-radius:0;}
+
+/* 播放键：56→40 视觉（44 透明命中盒），图标 24→18 */
+#view-channel.is-fs .ch-play{width:44px;height:44px;background:transparent;box-shadow:none;}
+#view-channel.is-fs .ch-play .ch-ico{
+  inset:2px;border-radius:var(--r-pill);background:var(--accent);
+  box-shadow:0 8px 22px -12px rgba(0,0,0,.9);
+}
+#view-channel.is-fs .ch-play svg{width:18px;height:18px;}
+
+/* 后退/前进/弹幕/队列：命中 44，视觉 34（图标 20→18），hover/按下反馈落在 34 里 */
+#view-channel.is-fs .ch-tbtn:not(.ch-epbtn) [data-ico]{
+  width:34px;height:34px;border-radius:var(--r-pill);
+  transition:background var(--dur) var(--ease);
+}
+#view-channel.is-fs .ch-tbtn:not(.ch-epbtn) svg{width:18px;height:18px;}
+#view-channel.is-fs .ch-tbtn:not(.ch-epbtn):hover{background:transparent;color:#fff;}
+#view-channel.is-fs .ch-tbtn:not(.ch-epbtn):hover [data-ico]{background:rgba(255,255,255,.14);}
+
+/* 倍速 1×：命中 44，视觉胶囊 26 高，字号 13→11 */
+#view-channel.is-fs .ch-rate{width:44px;min-width:44px;padding:0;}
+#view-channel.is-fs #ch-rate-label{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:26px;min-width:34px;padding:0 8px;border-radius:var(--r-pill);
+  background:rgba(255,255,255,.12);font-size:11px;line-height:1;
+}
+
+/* ---------- 8.1 · 展开动画的减少动效兜底 ----------
+   01-shell.css 的全站 html.reduce-motion 规则已把过渡压到 .01ms；
+   这两条再把频道展开写死成 none，避免个别 WebView 仍对 .01ms 回 transitionend。 */
+html.reduce-motion #view-channel .ch-body,
+html.reduce-motion #view-channel .ch-transport{transition:none !important;}
+
+/* ---------- 8.1 · 画质面板：「登录解锁 1080P」提示 ----------
+   由 js/30-player.js 的 openQuality() 动态插入 #sheet-body（不在 #view-channel 内），
+   所以这里不能带 #view-channel 前缀。整行可点、最小高度 48（≥44 触控目标），
+   点一下关面板并回「我的」扫码登录。 */
+.ch-qnhint{
+  display:flex;align-items:center;gap:10px;width:100%;min-height:48px;
+  margin-top:10px;padding:10px 14px;border-radius:var(--r-inner);
+  background:var(--bg-surface-tonal);color:var(--text-secondary);
+  font-size:12.5px;font-weight:550;line-height:1.45;letter-spacing:.005em;text-align:left;
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+.ch-qnhint:hover{background:var(--bg-surface-hover);color:var(--text-primary);}
+.ch-qnhint:active{transform:scale(.99);}
+.ch-qnhint__ico{flex:none;display:grid;place-items:center;color:var(--accent);}
+.ch-qnhint__chev{flex:none;margin-left:auto;display:grid;place-items:center;color:var(--text-muted);}

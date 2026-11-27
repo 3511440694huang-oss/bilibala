@@ -1,0 +1,159 @@
+/* ============================================================
+   01-shell.css · 应用外壳（顶栏 / 悬浮 dock / 舞台 / 抽屉 / 提示）
+   只写外壳，视图样式归各视图自己的 css/view-*.css
+   ============================================================ */
+
+html,body{height:100%;}
+body{overflow-x:hidden;}
+#main{padding:0 var(--sp-4) calc(104px + env(safe-area-inset-bottom,0px));max-width:1400px;margin:0 auto;}
+@media (min-width:900px){ #main{padding:0 var(--sp-6) calc(88px);} }
+
+.skip:focus{position:fixed;left:12px;top:12px;z-index:99;clip:auto;width:auto;height:auto;padding:10px 16px;border-radius:var(--r-pill);background:var(--bg-surface);box-shadow:var(--shadow-elevated);}
+
+/* ---------- 启动骨架 ---------- */
+.boot{
+  position:fixed;inset:0;z-index:60;display:grid;place-content:center;gap:14px;justify-items:center;
+  background:var(--bg-canvas);transition:opacity 320ms var(--ease),visibility 320ms;
+}
+.boot.is-done{opacity:0;visibility:hidden;}
+.boot__mark{width:44px;height:44px;border-radius:14px;background:var(--gemini-gradient);box-shadow:0 10px 26px -10px rgba(107,138,253,.55);}
+.boot__line{width:88px;height:3px;border-radius:9999px;background:var(--bg-surface-tonal);overflow:hidden;display:block;}
+.boot__line i{display:block;width:36%;height:100%;border-radius:9999px;background:var(--accent);animation:bootRun 1.1s var(--ease) infinite;}
+@keyframes bootRun{0%{transform:translateX(-100%);}100%{transform:translateX(320%);}}
+
+/* ---------- 顶栏 ---------- */
+.top{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;gap:var(--sp-3);
+  padding:calc(10px + env(safe-area-inset-top,0px)) var(--sp-4) 10px;
+  max-width:1400px;margin:0 auto;
+  background:linear-gradient(var(--bg-canvas) 62%,transparent);
+}
+.station{
+  display:inline-flex;align-items:center;gap:10px;min-width:0;max-width:62%;
+  height:44px;padding:0 12px 0 6px;border-radius:var(--r-pill);
+  background:var(--bg-surface);box-shadow:var(--shadow-ambient);
+  transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease);
+}
+.station:hover{transform:translateY(-1px);box-shadow:var(--shadow-elevated);}
+/* 按下反馈交给 05-motion 的独立 scale；这里不再写 :active transform，避免叠乘 */
+.station__av{width:32px;height:32px;border-radius:var(--r-pill);flex:none;background:var(--bg-surface-tonal) center/cover no-repeat;}
+.station__txt{display:flex;flex-direction:column;align-items:flex-start;min-width:0;line-height:1.2;}
+.station__txt b{font-size:14px;font-weight:600;letter-spacing:-.01em;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.station__txt i{font-size:11px;font-style:normal;color:var(--text-muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.station__chev{width:18px;height:18px;flex:none;color:var(--text-muted);}
+.station__chev svg{width:18px;height:18px;}
+.top__right{margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);}
+.livedot{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:var(--r-pill);background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600;}
+.livedot i{width:6px;height:6px;border-radius:9999px;background:currentColor;animation:livedot 2.4s var(--ease) infinite;}
+@keyframes livedot{0%,100%{opacity:1;}50%{opacity:.35;}}
+.avatar--sm{width:36px;height:36px;font-size:12px;}
+/* 顶栏那颗 .icon-btn 不在 .view 里，单独关掉 00-base 的 :active 缩放，避免和 JS 的 scale 叠乘 */
+.top .icon-btn:active{transform:none;}
+
+/* ---------- 舞台 / 视图切换 ---------- */
+/* 进场动画统一在 css/18-motion.css 的 .view.is-entering 里做（core 的 420ms 钩子），
+   这里只留显隐，避免两套 animation 叠在一起、以及 420ms 后重播一次。 */
+.view{display:none;}
+.view.is-active{display:block;}
+.view--page{position:fixed;inset:0;z-index:35;overflow:auto;background:var(--bg-canvas);padding:calc(8px + env(safe-area-inset-top,0px)) var(--sp-4) calc(24px + env(safe-area-inset-bottom,0px));}
+
+/* ---------- 悬浮 dock ---------- */
+.dock{
+  position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  z-index:40;display:flex;gap:2px;padding:6px;
+  max-width:calc(100vw - 24px);
+  background:var(--bg-surface);border-radius:var(--r-pill);
+  box-shadow:var(--shadow-float);
+  transition:transform 320ms var(--ease),opacity 240ms var(--ease);
+}
+.dock__item{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  min-width:58px;height:52px;padding:0 12px;border-radius:var(--r-pill);
+  color:var(--text-muted);font-size:11px;font-weight:600;letter-spacing:.01em;
+  /* 指示胶囊（.dock__pill）在 z-index:0 层滑动，按钮文字/图标压在它上面 */
+  position:relative;z-index:1;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+  -webkit-tap-highlight-color:transparent;
+}
+.dock__item:hover:not([aria-selected="true"]){background:var(--bg-surface-tonal);color:var(--text-primary);}
+/* 选中态底色由 .dock__pill 负责（滑动动画），这里只换文字色，不再叠一层背景 */
+.dock__item[aria-selected="true"]{background:transparent;color:var(--accent);}
+.dock__ico{width:20px;height:20px;display:block;}
+.dock__ico svg{width:20px;height:20px;display:block;}
+.dock__lbl{line-height:1;}
+body[data-route="me"] .dock{transform:translateX(-50%) translateY(120%);opacity:0;pointer-events:none;}
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom,0px));transform:translate(-50%,8px);
+  z-index:50;max-width:calc(100vw - 48px);padding:10px 16px;border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);color:var(--text-primary);
+  font-size:13px;box-shadow:var(--shadow-elevated);
+  opacity:0;transition:opacity 180ms var(--ease),transform 220ms var(--ease);
+  pointer-events:none;
+}
+.toast.is-on{opacity:1;transform:translate(-50%,0);}
+.toast[data-kind="err"]{background:#3a1f22;color:#ffd9dd;}
+
+/* ---------- 抽屉 ---------- */
+.scrim{position:fixed;inset:0;z-index:45;background:rgba(0,0,0,.48);opacity:0;transition:opacity 220ms var(--ease);}
+.scrim.is-on{opacity:1;}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:46;
+  max-height:86dvh;display:flex;flex-direction:column;
+  background:var(--bg-surface);border-radius:var(--r-card) var(--r-card) 0 0;
+  box-shadow:var(--shadow-float);
+  transform:translateY(102%);transition:transform 300ms var(--ease);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.sheet.is-on{transform:none;}
+.sheet__grip{display:grid;place-items:center;padding:10px 0 2px;touch-action:none;cursor:grab;}
+.sheet__grip i{width:36px;height:4px;border-radius:9999px;background:var(--border-strong);}
+.sheet__head{display:flex;align-items:center;gap:var(--sp-3);padding:2px var(--sp-5) var(--sp-3);}
+.sheet__head h2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sheet__body{overflow:auto;overscroll-behavior:contain;padding:0 var(--sp-5) var(--sp-4);}
+.sheet__foot{display:flex;gap:var(--sp-2);padding:var(--sp-3) var(--sp-5) var(--sp-5);}
+.sheet__foot .btn{flex:1;}
+
+/* 抽屉内容通用行 */
+.sheet-row{display:flex;align-items:center;gap:var(--sp-3);width:100%;min-height:52px;padding:var(--sp-2) 0;text-align:left;border-radius:var(--r-inner);}
+.sheet-row{position:relative;}
+.sheet-row + .sheet-row::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--border-hairline);}
+.sheet-row__t{flex:1;min-width:0;}
+.sheet-row__t b{display:block;font-size:14px;font-weight:550;letter-spacing:-.005em;}
+.sheet-row__t i{display:block;font-style:normal;font-size:12px;color:var(--text-muted);margin-top:2px;}
+
+/* ---------- 表单 ---------- */
+.fld{
+  height:44px;width:100%;padding:0 var(--sp-4);border:0;border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);color:var(--text-primary);font-size:14px;
+  transition:box-shadow var(--dur) var(--ease),background var(--dur) var(--ease);
+}
+.fld::placeholder{color:var(--text-muted);}
+.fld:focus{outline:none;background:var(--bg-surface-hover);box-shadow:0 0 0 1.5px rgba(107,138,253,.55);}
+html[data-theme="dark"] .fld:focus{box-shadow:0 0 0 1.5px rgba(168,199,250,.6);}
+
+/* 顶栏滚动投影（05-motion 加 .is-scrolled） */
+.top.is-scrolled{box-shadow:0 1px 0 var(--border-hairline);}
+.ob-res{margin-top:2px;}
+
+/* 减少动效 */
+html.reduce-motion *,html.reduce-motion *::before,html.reduce-motion *::after{
+  animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;
+}
+
+/* 头像用强调色分层，不用渐变（品牌渐变只留在启动标） */
+.avatar{background:var(--accent-tonal);color:var(--accent);}
+html[data-theme="dark"] .avatar{background:var(--accent-tonal);color:var(--accent);}
+
+/* ---------- 触感：按下反馈 + 去掉 WebView 默认蓝框 ---------- */
+/* Android WebView 的 -webkit-tap-highlight-color 默认值在暗色页上就是一层蓝框，
+   它跟设计里的按下动画是两回事，全站关掉，改用 05-motion 的缩放反馈。 */
+*{-webkit-tap-highlight-color:transparent;}
+/* 焦点环只留给键盘：触摸/鼠标点出来的焦点不再画环（颜色是品牌蓝，不是蓝紫） */
+html:not(.kb) :where(button,a,input,textarea,select,[tabindex],[role="tab"]):focus-visible{outline:none!important;box-shadow:none!important;}
+html.kb :where(button,a,input,textarea,select,[tabindex],[role="tab"]):focus-visible{
+  outline:none!important;
+  box-shadow:0 0 0 1.5px var(--bg-canvas),0 0 0 3.5px var(--accent);
+}

@@ -1,0 +1,90 @@
+<section class="view" id="view-monitor" data-view="monitor" hidden>
+  <div class="mon-wrap">
+
+    <header class="mon-head">
+      <div class="mon-head__main">
+        <p class="eyebrow">多路监控</p>
+        <h1 class="h2 mon-title">同时看几路</h1>
+        <p class="mon-sub" id="mon-sub">自动从关注里补台 · 默认静音</p>
+      </div>
+      <button class="btn mon-add" id="mon-add" type="button">
+        <span data-ico="plus"></span><span>加一路</span>
+      </button>
+    </header>
+
+    <div class="mon-tools">
+      <div class="mon-seg" id="mon-seg" role="group" aria-label="画面布局">
+        <button type="button" data-lay="1" aria-pressed="false">单列</button>
+        <button type="button" data-lay="2" aria-pressed="false">双列</button>
+        <button type="button" data-lay="2x2" aria-pressed="false">2×2</button>
+        <button type="button" data-lay="auto" aria-pressed="true">自适应</button>
+      </div>
+      <button class="icon-btn mon-wall" id="mon-wall" type="button" aria-label="横屏监控墙" aria-pressed="false">
+        <span data-ico="expand"></span>
+      </button>
+      <button class="icon-btn mon-refresh" id="mon-refresh" type="button" aria-label="重新探测开播">
+        <span data-ico="refresh"></span>
+      </button>
+      <button class="mon-fitbtn" id="mon-fit2" type="button" aria-pressed="true" aria-label="画面：铺满">铺满</button>
+    </div>
+
+    <div class="mon-note" id="mon-note" hidden role="status">
+      <span class="mon-note__t" id="mon-note-t">自动补台没成功，检查网络后再试一次。</span>
+      <button class="btn mon-note__b" id="mon-note-retry" type="button">重试</button>
+    </div>
+
+    <div class="mon-grid mon-lay-auto" id="mon-grid" hidden></div>
+
+    <div class="mon-grid mon-lay-auto mon-skel" id="mon-skel" aria-hidden="true">
+      <div class="mon-sk"></div>
+      <div class="mon-sk"></div>
+      <div class="mon-sk"></div>
+      <div class="mon-sk"></div>
+    </div>
+
+    <div class="mon-empty" id="mon-empty" hidden>
+      <span class="mon-empty__art" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="10" width="20" height="16" rx="5"/>
+          <rect x="36" y="10" width="20" height="16" rx="5"/>
+          <rect x="8" y="38" width="20" height="16" rx="5"/>
+          <path d="M36 46h20M46 38v16"/>
+        </svg>
+      </span>
+      <p class="h3">还没有监控的直播间</p>
+      <p class="mon-empty__s">点「加一路」填房间号，或者等关注的主播开播后自动补进来。</p>
+      <button class="btn btn--primary" id="mon-add2" type="button">加一路</button>
+    </div>
+
+    <p class="mon-foot" id="mon-foot">最多同时看 6 路；单击瓦片开声（同时只有一路出声），双击放大，长按拖动排序；右上角「横屏墙」或横过手机铺满屏；离开这页会停止拉流。</p>
+  </div>
+
+  <div class="mon-wallbar" id="mon-wallbar" role="toolbar" aria-label="监控墙工具">
+    <button class="mon-wbtn" id="mon-wall-exit" type="button">
+      <span data-ico="collapse"></span><span>退出墙</span>
+    </button>
+    <button class="mon-wbtn" id="mon-auto" type="button">
+      <span data-ico="grid"></span><span>自动排版</span>
+    </button>
+    <button class="mon-wbtn" id="mon-fit" type="button" aria-pressed="true" aria-label="画面：铺满">
+      <span data-ico="expand"></span><span data-mon-fit-txt>铺满</span>
+    </button>
+    <button class="mon-wbtn" id="mon-wall-add" type="button">
+      <span data-ico="plus"></span><span>加一路</span>
+    </button>
+  </div>
+
+  <div class="mon-focusbar" id="mon-focus-bar" hidden>
+    <div class="mon-focus__txt">
+      <b class="truncate" id="mon-focus-name">直播间</b>
+      <i class="truncate" id="mon-focus-title"></i>
+    </div>
+    <span class="mon-focus__online" id="mon-focus-online"></span>
+    <button class="mon-ovbtn" id="mon-focus-sound" type="button" aria-label="声音：已静音" aria-pressed="false">
+      <span data-ico="mute"></span>
+    </button>
+    <button class="mon-ovbtn" id="mon-focus-close" type="button" aria-label="收起放大">
+      <span data-ico="collapse"></span>
+    </button>
+  </div>
+</section>

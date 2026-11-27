@@ -1,0 +1,88 @@
+/* ============================================================
+   css/18-motion.css · 动效层（8.0）
+   构建是 cat css/*.css（字典序）：本文件排在 00-base/01-shell/10~16 之后，
+   但排在 20-live/30-day/31-monitor/40-playlist/50-me 之前。
+   所以与视图 css 冲突的声明一律用 !important / 更高特异性收口，不靠顺序。
+     A 视图进场：只认 core 的 .is-entering（420ms 钩子）
+     B 按下反馈收口：关掉各视图 css 里与 JS 独立 scale 叠乘的 :active transform
+     C dock 指示胶囊（真实节点，由 js/05-motion.js 插入）
+     D 抽屉 / 提示的进出节奏
+   只写 transform / opacity / scale，不动布局；无 backdrop-filter、无渐变。
+   html.reduce-motion 的「瞬时」由 01-shell.css 的全站规则兜底
+   （animation-duration / transition-duration 压到 .01ms），这里不重复声明。
+   ============================================================ */
+
+/* ============================================================
+   A · 视图进场
+   core 在同一帧里连加 .is-active + .is-entering，没有「上一帧」可过渡，
+   所以用关键帧而不是 transition；同时把 00-base / 01-shell 的旧入场动画关掉，
+   否则 .is-entering 在 420ms 被移除时 animation-name 变化会让动画重播一次。
+   ============================================================ */
+.view{animation:none;}
+.view.is-active{animation:none;}
+.view.is-entering{animation:viewEnter 320ms var(--ease) both;}
+
+@keyframes viewEnter{
+  from{opacity:0;transform:translate3d(0,10px,0) scale(.994);}
+  to{opacity:1;transform:none;}
+}
+
+/* #view-me = .view--page：position:fixed 的唯一滚动页 + sticky 页头（.me-top）。
+   只做淡入 + 6px 上浮，不加 scale：缩放会让 fixed 滚动容器在左右露出画布底色，
+   并让 sticky 页头按缩放后的滚动口计算，出现 1~2px 抖动。 */
+.view--page.is-entering{animation:pageEnter 320ms var(--ease) both;}
+
+@keyframes pageEnter{
+  from{opacity:0;transform:translate3d(0,6px,0);}
+  to{opacity:1;transform:none;}
+}
+
+/* 横屏全屏播放（#view-channel.is-fs 本身是 fixed 黑底铺满）：只淡入，不位移不缩放 */
+.view.is-fs.is-entering{animation:fadeEnter 240ms var(--ease) both;}
+
+@keyframes fadeEnter{
+  from{opacity:0;}
+  to{opacity:1;}
+}
+
+/* ============================================================
+   B · 按下反馈收口
+   视图 css 里大量 :active{transform:scale(...)} 会和 05-motion 的独立 scale 叠乘
+   （.94 × .94），同一颗按钮按下去像被按了两次。这里只关 :active 的 transform，
+   background / box-shadow / filter 等按下态一律保留。
+   故意不在名单里：#fs-unlock 与 .lv-new 的 :active 带 translateX 定位，
+   transform:none 会让它们横向跳位。
+   ============================================================ */
+.view :is(.btn,.icon-btn,.chip,.ch-lock,.ch-cta,.ch-fs,.ch-tbtn,.ch-play,.ch-row,
+  .dm-send,.dm-gear,.dm-fold,.dm-note__btn,.dm-chip,.dm-pill,.fs-act,
+  .day-jump,.day-cell,.mon-seg button,.mon-cell__del,.mon-cell__retry,.mon-ovbtn,
+  .pl-now__btn,.pl-card__main,.pl-track,.me-post,.me-seg__btn,.lv-eitem):active{
+  transform:none!important;
+}
+
+/* 抽屉里的通用控件只有 00-base 的 .btn / .icon-btn / .chip:active，前缀即可压过 */
+.sheet :is(.btn,.icon-btn,.chip,.cell,.srow):active{transform:none;}
+
+/* ============================================================
+   C · dock 指示胶囊
+   节点由 js/05-motion.js 插入：#dock > span.dock__pill[aria-hidden]
+   位置 = left:0 + translateX(按钮 offsetLeft)；宽高按目标按钮取。
+   层级：.dock__item 已 position:relative + z-index:1，胶囊 z-index:0 在文字之下。
+   ============================================================ */
+.dock__pill{
+  position:absolute;left:0;top:6px;width:58px;height:52px;
+  border-radius:var(--r-pill);
+  background:rgba(168,199,250,.16);
+  z-index:0;pointer-events:none;opacity:0;
+  transform:translate3d(0,0,0);
+  transition:transform 260ms var(--ease),width 260ms var(--ease),opacity 180ms var(--ease);
+}
+
+/* ============================================================
+   D · 抽屉 / 提示
+   开：320ms 弹性上滑；关：240ms 收回（core 关后 300ms 才 hidden）。
+   提示：220ms 弹出（core 退场后 220ms 才 hidden，节奏对齐）。
+   ============================================================ */
+.sheet{transition:transform 240ms var(--ease);}
+.sheet.is-on{transition:transform 320ms cubic-bezier(.2,.9,.2,1);}
+.toast{transition:opacity 220ms var(--ease),transform 220ms var(--ease);}

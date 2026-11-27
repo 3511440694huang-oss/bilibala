@@ -1,0 +1,47 @@
+<section class="view" id="view-day" data-view="day" hidden>
+  <div class="day-wrap">
+
+    <header class="day-head">
+      <div class="day-head__main">
+        <p class="eyebrow">24H · 全天候回放 <span class="sr-only" id="day-station"></span></p>
+        <h1 class="h2 day-title">一天的电波</h1>
+        <p class="day-nowline">
+          <span class="day-dot" aria-hidden="true"></span>
+          <span class="day-nowclock">现在 <b class="num" id="day-clock">--:--</b></span>
+          <span class="day-nowtitle truncate" id="day-current" aria-live="polite">正在取今天的排期…</span>
+        </p>
+      </div>
+      <div class="day-head__meta" id="day-meta">
+        <span class="tag num" id="day-count">-- 期</span>
+        <span class="tag num" id="day-loop">循环 --:--</span>
+      </div>
+    </header>
+
+    <div class="day-skel" id="day-skel" aria-hidden="true">
+      <i></i><i></i><i></i><i></i>
+    </div>
+
+    <div class="day-state" id="day-state" hidden>
+      <span class="day-state__art" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="32" cy="35" r="18"/>
+          <path d="M32 25.5V35l6.5 4"/>
+          <path d="M32 9v6M11.5 16.5l4.2 4.2M52.5 16.5l-4.2 4.2"/>
+        </svg>
+      </span>
+      <p class="h3" id="day-state-t">排期没取到</p>
+      <p class="day-state__s" id="day-state-s">本地服务没回应，点一下重新取。</p>
+      <button class="btn btn--primary" id="day-retry" type="button">重新取排期</button>
+    </div>
+
+    <div class="day-band" id="day-band" hidden>
+      <div class="day-track" id="day-track"></div>
+    </div>
+
+    <p class="day-foot" id="day-foot">点时间带上的任意一刻，从那里开始听。</p>
+  </div>
+
+  <button class="day-jump" id="day-jump" type="button" hidden>
+    <span data-ico="clock"></span><span>回到现在</span>
+  </button>
+</section>

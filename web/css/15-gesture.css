@@ -1,0 +1,301 @@
+/* ============================================================
+   15-gesture.css · 横屏手势层与横屏 UI（35-fs.js / 36-gesture.js）
+   ------------------------------------------------------------
+   只做「画面上的浮层」：色调分层不用边框、零 backdrop-filter、
+   圆角 24/16/胶囊、统一 cubic-bezier(.2,.8,.2,1)、触控 ≥44。
+   横屏是暗底，这里的颜色是固定的「玻璃墨色」，不跟主题 token 翻白。
+   ============================================================ */
+
+/* ---------- 0. 画面接手势：竖滑不许被浏览器当成页面滚动 ---------- */
+#view-channel .ch-media{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+#view-channel .ch-media video{-webkit-user-select:none;user-select:none;}
+
+/* ---------- 1. 顶部取色保护层（canvas 采样 → 纯渐变，不模糊） ---------- */
+#view-channel .fs-tint{
+  position:absolute;left:0;right:0;top:0;height:37%;z-index:2;
+  pointer-events:none;opacity:0;transition:opacity 320ms var(--ease);
+  background:linear-gradient(180deg,
+    rgba(var(--tint-rgb,16,18,24),.92) 0%,
+    rgba(var(--tint-rgb,16,18,24),.56) 46%,
+    rgba(var(--tint-rgb,16,18,24),0) 100%);
+}
+#view-channel.is-fs .fs-tint{opacity:1;}
+.fs-tint-cv{position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;}
+
+/* ---------- 2. 横屏 chrome：左上退出 + 右上操作组 ---------- */
+#fs-chrome{
+  position:absolute;inset:0;z-index:9;
+  pointer-events:none;opacity:1;transition:opacity 200ms var(--ease);
+}
+#view-channel.is-fs:not(.rr-shown) #fs-chrome,
+#view-channel.is-locked #fs-chrome{opacity:0;}
+#view-channel.is-fs:not(.rr-shown) #fs-chrome *,
+#view-channel.is-locked #fs-chrome *{pointer-events:none;}
+/* 全屏时播放器自带的全屏键让位给本层的「退出横屏」；
+   锁键（#ch-lock）只在锁定后由内核 lockHint 亮出来，位置在左上，正好是本层
+   退出键让位后的空位，所以保留不藏。 */
+#view-channel.is-fs .ch-fs{display:none;}
+/* 内核自己把控制条收起来时（is-away），本层浮层跟着收 */
+#view-channel.is-fs.is-away #fs-chrome{opacity:0;}
+#view-channel.is-fs.is-away #fs-chrome *{pointer-events:none;}
+
+.fs-act{
+  display:grid;place-items:center;
+  width:44px;height:44px;padding:0;border-radius:var(--r-pill);
+  color:#F2F4F7;background:rgba(12,14,18,.46);
+  pointer-events:auto;-webkit-tap-highlight-color:transparent;
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease),color var(--dur) var(--ease);
+}
+.fs-act:hover{background:rgba(12,14,18,.64);}
+.fs-act:active{transform:scale(.94);}
+.fs-act.is-on{background:#F2F4F7;color:#14161A;}
+.fs-act svg{width:22px;height:22px;display:block;}
+
+.fs-exit{
+  position:absolute;
+  left:calc(10px + env(safe-area-inset-left,0px));
+  top:calc(10px + env(safe-area-inset-top,0px));
+}
+.fs-acts{
+  position:absolute;
+  right:calc(10px + env(safe-area-inset-right,0px));
+  top:calc(10px + env(safe-area-inset-top,0px));
+  display:flex;align-items:center;gap:6px;
+}
+
+/* ---------- 3. 音量 / 亮度 HUD ---------- */
+#fs-hud{
+  position:absolute;left:50%;top:30%;z-index:10;
+  transform:translate(-50%,-50%) scale(.96);
+  display:flex;align-items:center;gap:12px;
+  min-width:184px;max-width:calc(100vw - 32px);
+  padding:11px 16px;border-radius:var(--r-pill);
+  background:rgba(10,12,16,.74);color:#F2F4F7;
+  opacity:0;pointer-events:none;
+  transition:opacity 180ms var(--ease),transform 200ms var(--ease);
+}
+#fs-hud.is-on{opacity:1;transform:translate(-50%,-50%) scale(1);}
+#fs-hud .fs-hud__ico{display:grid;place-items:center;flex:none;width:22px;height:22px;color:#fff;}
+#fs-hud .fs-hud__ico svg{width:22px;height:22px;}
+#fs-hud .fs-hud__mid{display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-width:0;}
+#fs-hud .fs-hud__t{font-size:11px;font-weight:600;letter-spacing:.08em;color:rgba(242,244,247,.7);line-height:1;}
+#fs-hud .fs-hud__bar{
+  position:relative;display:block;width:112px;max-width:100%;height:4px;
+  border-radius:9999px;background:rgba(255,255,255,.24);overflow:hidden;
+}
+#fs-hud .fs-hud__bar i{
+  display:block;width:0;height:100%;border-radius:9999px;background:#fff;
+  transition:width 60ms linear;
+}
+#fs-hud .fs-hud__v{
+  flex:none;min-width:40px;text-align:right;
+  font-size:14px;font-weight:650;letter-spacing:-.01em;
+}
+
+/* ---------- 4. 手势/旋屏提示 ---------- */
+#fs-hint{
+  position:absolute;left:50%;top:40%;z-index:10;
+  transform:translate(-50%,-50%) scale(.96);
+  padding:8px 15px;border-radius:var(--r-pill);
+  background:rgba(8,10,14,.72);color:#fff;
+  font-size:13px;font-weight:550;letter-spacing:-.005em;
+  opacity:0;pointer-events:none;
+  transition:opacity 160ms var(--ease),transform 160ms var(--ease);
+}
+#fs-hint.is-on{opacity:1;transform:translate(-50%,-50%) scale(1);}
+
+/* ---------- 5. 防误触锁：只留一颗解锁键 ---------- */
+#fs-unlock{
+  position:absolute;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);z-index:12;
+  display:grid;place-items:center;
+  width:52px;height:52px;padding:0;border-radius:var(--r-pill);
+  background:rgba(10,12,16,.68);color:#F2F4F7;
+  pointer-events:auto;
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease),opacity 200ms var(--ease);
+}
+#fs-unlock:hover{background:rgba(10,12,16,.82);}
+#fs-unlock:active{transform:translateX(-50%) scale(.94);}
+#fs-unlock svg{width:22px;height:22px;}
+#view-channel.is-locked .ch-body{pointer-events:none;}
+
+/* ---------- 6. 横屏 UI 显隐：3.5s 自动淡出（36-gesture 控 .rr-shown） ---------- */
+#view-channel.is-fs.rr-shown .ch-body{opacity:1;transform:none;pointer-events:auto;}
+#view-channel.is-fs:not(.rr-shown) .ch-body{
+  opacity:0;transform:translateY(10px);pointer-events:none;
+}
+
+/* ---------- 7. 横屏时外壳让位 ---------- */
+html.rr-fs .dock{display:none;}
+html.rr-fs body{overflow:hidden;}
+
+/* 横屏里打开的抽屉/提示必须压在视频层之上 */
+html.rr-fs .scrim{z-index:95;}
+html.rr-fs .sheet{z-index:96;}
+html.rr-fs .toast{z-index:97;}
+
+/* ---------- 8. 底部兜底条（播放器 UI 缺进度条时才出现） ---------- */
+#fs-bottom{
+  position:absolute;left:0;right:0;bottom:0;z-index:9;
+  display:flex;align-items:center;gap:10px;min-width:0;
+  padding:8px calc(12px + env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) calc(12px + env(safe-area-inset-left,0px));
+  background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.74) 100%);
+  color:#F2F4F7;
+  transition:opacity 200ms var(--ease);
+}
+#view-channel.is-fs:not(.rr-shown) #fs-bottom{opacity:0;pointer-events:none;}
+#fs-bottom .fsb-play{width:44px;height:44px;background:transparent;flex:none;}
+#fs-bottom .fsb-time{flex:none;min-width:38px;text-align:center;font-size:12px;color:rgba(242,244,247,.72);}
+#fs-bottom .fsb-track{position:relative;flex:1 1 auto;min-width:0;height:44px;display:flex;align-items:center;cursor:pointer;touch-action:none;}
+#fs-bottom .fsb-track::before{
+  content:"";position:absolute;left:0;right:0;height:4px;border-radius:9999px;
+  background:rgba(255,255,255,.26);
+}
+#fs-bottom .fsb-fill{position:absolute;left:0;height:4px;border-radius:9999px;background:#fff;}
+#fs-bottom .fsb-knob{
+  position:absolute;width:12px;height:12px;margin-left:-6px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5);
+}
+
+/* ---------- 9. 弹幕设置面板（从横屏右上进入） ---------- */
+.fs-dm-panel .dm-row{display:flex;align-items:center;gap:12px;min-width:0;min-height:48px;}
+.fs-dm-panel .dm-row__t{flex:none;width:52px;font-size:13px;color:var(--text-secondary);}
+.fs-dm-panel .dm-row__v{flex:none;width:44px;text-align:right;font-size:12px;color:var(--text-muted);}
+.fs-dm-panel input[type=range]{
+  flex:1 1 auto;min-width:0;height:44px;margin:0;
+  accent-color:var(--accent);background:transparent;
+}
+.fs-dm-panel .dm-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.fs-dm-panel .dm-chip{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:44px;padding:0 16px;border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);color:var(--text-secondary);
+  font-size:13px;font-weight:500;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+}
+.fs-dm-panel .dm-chip.is-on{background:var(--accent-soft);color:var(--accent);}
+html[data-theme="dark"] .fs-dm-panel .dm-chip.is-on{background:var(--accent-tonal);color:var(--accent);}
+
+/* ---------- 10. 窄屏 / 横屏细节 ---------- */
+@media (max-width:359px){
+  .fs-acts{gap:4px;}
+  #fs-hud{min-width:0;width:calc(100vw - 48px);padding:10px 14px;}
+  #fs-hud .fs-hud__bar{width:auto;flex:1;}
+}
+@media (orientation:landscape) and (max-height:420px){
+  #view-channel.is-fs .ch-body{padding-top:14px;}
+  #fs-hud .fs-hud__bar{width:132px;}
+  #fs-hint{top:41%;}
+}
+
+/* ============================================================
+   11. 横屏 chrome 缩小（task-19 · 只作用横屏）
+   ------------------------------------------------------------
+   原则：**视觉变小、命中区不变**。
+   · 视觉 rect 缩小后，命中用一枚【无圆角、无底色】的 ::after 外扩：
+     圆角会参与命中测试（44 圆按钮的四角本来就打不中），所以外扩层必须
+     是直角 + 透明 + pointer-events:auto，才撑得起 44 框的四角。
+   · 行内间距取 10：36 + 10 = 46，相邻两枚的 46 框正好相接；44 框（±22）
+     严格落在自己的框内 —— 既不重叠（不会误点隔壁）也不留死缝。
+   · 整块包在 @media (orientation:landscape) 且要求 .is-fs：
+     竖屏（含竖屏里进全屏）一个像素都不动。
+   ============================================================ */
+@media (orientation:landscape){
+  /* ---- 11.1 右上 5 枚 + 左上退出：44 → 36（图标 22 → 18，底色 .46 → .32） ---- */
+  #view-channel.is-fs .fs-act{
+    position:relative;
+    width:36px;height:36px;
+    background:rgba(12,14,18,.32);
+  }
+  #view-channel.is-fs .fs-act:hover{background:rgba(12,14,18,.52);}
+  #view-channel.is-fs .fs-act.is-on,
+  #view-channel.is-fs .fs-act.is-on:hover{background:#F2F4F7;color:#14161A;}
+  #view-channel.is-fs .fs-act svg{width:18px;height:18px;}
+  #view-channel.is-fs .fs-act::after{
+    content:"";position:absolute;left:50%;top:50%;
+    width:46px;height:46px;margin:-23px 0 0 -23px;
+    background:transparent;border:0;border-radius:0;pointer-events:auto;
+  }
+  #view-channel.is-fs .fs-acts{gap:10px;}
+  #view-channel.is-fs .fs-exit{
+    left:calc(10px + env(safe-area-inset-left,0px));
+    top:calc(10px + env(safe-area-inset-top,0px));
+  }
+  #view-channel.is-fs .fs-acts{
+    right:calc(10px + env(safe-area-inset-right,0px));
+    top:calc(10px + env(safe-area-inset-top,0px));
+  }
+
+  /* ---- 11.2 顶部取色暗渐变：高度 37% → 26%，最上沿 .92 → .8 ---- */
+  #view-channel.is-fs .fs-tint{
+    height:26%;
+    background:linear-gradient(180deg,
+      rgba(var(--tint-rgb,16,18,24),.8) 0%,
+      rgba(var(--tint-rgb,16,18,24),.56) 46%,
+      rgba(var(--tint-rgb,16,18,24),0) 100%);
+  }
+
+  /* ---- 11.3 横屏标题：17 → 15，单行截断 ---- */
+  #view-channel.is-fs .ch-title{
+    font-size:15px;line-height:1.24;-webkit-line-clamp:1;margin-top:0;
+  }
+
+  /* ---- 11.4 「发个弹幕」胶囊：44 → 34，字 13.5 → 12（命中撑到 46×44） ---- */
+  #view-channel.is-fs .dm-pill{
+    position:relative;
+    height:34px;padding:0 12px;
+    font-size:12px;gap:6px;
+  }
+  #view-channel.is-fs .dm-pill svg{width:16px;height:16px;}
+  #view-channel.is-fs .dm-pill::after{
+    content:"";position:absolute;left:50%;top:50%;
+    width:46px;height:46px;margin:-23px 0 0 -23px;
+    background:transparent;border-radius:0;pointer-events:auto;
+  }
+
+  /* ---- 11.5 音量/亮度 HUD：min-width 184 → 140，条 132 → 88×3，数值 14 → 12 ----
+     竖排两行（品牌标 + 数值 / 条）用 grid + display:contents 排，
+     这样 140 宽里 88 的条放得下，且 DOM 不用动（竖屏 HUD 结构保持一致）。 */
+  #view-channel.is-fs #fs-hud{
+    display:grid;
+    grid-template-columns:18px minmax(0,1fr);
+    grid-template-rows:auto 3px;
+    align-items:center;
+    column-gap:8px;row-gap:4px;
+    min-width:140px;
+    padding:8px 12px;
+  }
+  #view-channel.is-fs #fs-hud .fs-hud__ico{grid-area:1/1/3/2;width:18px;height:18px;}
+  #view-channel.is-fs #fs-hud .fs-hud__ico svg{width:18px;height:18px;}
+  #view-channel.is-fs #fs-hud .fs-hud__mid{display:contents;}
+  #view-channel.is-fs #fs-hud .fs-hud__t{grid-area:1/2;justify-self:start;align-self:end;font-size:11px;}
+  #view-channel.is-fs #fs-hud .fs-hud__v{
+    grid-area:1/2;justify-self:end;align-self:end;
+    font-size:12px;min-width:0;text-align:right;
+  }
+  #view-channel.is-fs #fs-hud .fs-hud__bar{
+    grid-area:2/2;justify-self:start;
+    width:88px;height:3px;max-width:100%;
+  }
+
+  /* ---- 11.6 底部兜底条（本 build 未启用；启用时按此缩：播放 44→38、时间 11、线 3、滑块 10） ---- */
+  #view-channel.is-fs #fs-bottom .fsb-play{position:relative;width:38px;height:38px;}
+  #view-channel.is-fs #fs-bottom .fsb-play::after{
+    content:"";position:absolute;left:50%;top:50%;
+    width:46px;height:46px;margin:-23px 0 0 -23px;
+    background:transparent;border-radius:0;pointer-events:auto;
+  }
+  #view-channel.is-fs #fs-bottom .fsb-time{font-size:11px;}
+  #view-channel.is-fs #fs-bottom .fsb-track::before{height:3px;}
+  #view-channel.is-fs #fs-bottom .fsb-fill{height:3px;}
+  #view-channel.is-fs #fs-bottom .fsb-knob{width:10px;height:10px;margin-left:-5px;}
+
+  /* ---- 11.7 解锁键：52 → 44 视觉，命中仍 52 ---- */
+  #view-channel.is-fs #fs-unlock{position:absolute;width:44px;height:44px;}
+  #view-channel.is-fs #fs-unlock::after{
+    content:"";position:absolute;left:50%;top:50%;
+    width:54px;height:54px;margin:-27px 0 0 -27px;
+    background:transparent;border-radius:0;pointer-events:auto;
+  }
+  #view-channel.is-fs #fs-unlock svg{width:20px;height:20px;}
+}

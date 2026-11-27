@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  悬浮小窗（8.2）：退后台不再进系统画中画，改由 App 自己在别的应用上面盖这一块。
+
+  尺寸不在这里定：窗口大小由 OverlayService 用 WindowManager.LayoutParams 写死
+  （220dp × 220dp*9/16），所以这里全部 match_parent，屏幕旋转/分屏都不管它。
+
+  画面用 TextureView 而不是 SurfaceView：SurfaceView 的画面是独立一层 surface，
+  在「别的应用上面」这种浮动窗口里会沉到窗口后面被根容器的底色盖住（表现就是黑屏、有声无画），
+  而且父容器的圆角永远裁不到它。TextureView 走硬件加速的 RenderNode，
+  跟着视图层级一起被 clipToOutline 裁，黑屏和圆角两个毛病一起解决。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ovRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 画面：16:9 由窗口尺寸保证，ExoPlayer 自己按比例缩放；圆角由根容器 clipToOutline 裁 -->
+    <TextureView
+        android:id="@+id/ovVideo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 边光：中间透明，只画一圈圆角描边，盖在视频上做窗框 -->
+    <View
+        android:id="@+id/ovBorder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 进度小片：只在回放（live=false）时显示，直播不给进度 -->
+    <TextView
+        android:id="@+id/ovTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="6dp"
+        android:background="#66000000"
+        android:fontFamily="monospace"
+        android:paddingStart="5dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="5dp"
+        android:paddingBottom="2dp"
+        android:textColor="#E6FFFFFF"
+        android:textSize="9sp"
+        android:visibility="gone" />
+
+    <!-- 控制条：平时半透明，点画面切显隐，3 秒不动自己淡出 -->
+    <LinearLayout
+        android:id="@+id/ovBar"
+        android:layout_width="match_parent"
+        android:layout_height="30dp"
+        android:layout_gravity="bottom"
+        android:background="#8C000000"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp">
+
+        <TextView
+            android:id="@+id/ovPlay"
+            android:layout_width="30dp"
+            android:layout_height="match_parent"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="▶"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/ovTitle"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="2dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:gravity="center_vertical"
+            android:maxLines="1"
+            android:textColor="#B3FFFFFF"
+            android:textSize="10sp" />
+
+        <!-- 回 App 箭头 -->
+        <TextView
+            android:id="@+id/ovBack"
+            android:layout_width="28dp"
+            android:layout_height="match_parent"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="↩"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp" />
+
+        <!-- 关闭 × -->
+        <TextView
+            android:id="@+id/ovClose"
+            android:layout_width="28dp"
+            android:layout_height="match_parent"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="×"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp" />
+    </LinearLayout>
+</FrameLayout>

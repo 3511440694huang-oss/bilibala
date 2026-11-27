@@ -1,0 +1,613 @@
+/* ============================================================
+   31-monitor.css · 多路监控（view-monitor）
+   8.0：横屏墙 / 一大多小焦点 / 拖动排序 / 自动排版
+   色调分层 / 24 圆角 / 胶囊按钮 44 / 统一 --ease
+   渐变只用于视频上的可读性遮罩，不铺卡片；同屏零 backdrop-filter。
+   ============================================================ */
+
+/* ---------- 页头 ---------- */
+#view-monitor .mon-head{
+  display:flex;align-items:flex-end;gap:var(--sp-3);
+  margin:var(--sp-2) 0 var(--sp-2);
+}
+#view-monitor .mon-head__main{flex:1 1 auto;min-width:0;}
+#view-monitor .mon-title{margin-top:2px;letter-spacing:-.025em;line-height:1.1;}
+#view-monitor .mon-sub{
+  margin-top:var(--sp-2);font-size:12.5px;line-height:1.5;
+  color:var(--text-muted);min-width:0;
+}
+#view-monitor .mon-add{flex:none;gap:6px;padding:0 14px;}
+#view-monitor .mon-add svg{width:18px;height:18px;}
+
+/* ---------- 工具条 ---------- */
+#view-monitor .mon-tools{
+  display:flex;align-items:center;gap:var(--sp-2);
+  margin:var(--sp-4) 0 var(--sp-3);
+}
+#view-monitor .mon-seg{
+  display:flex;align-items:center;gap:2px;
+  padding:3px;min-width:0;
+  border-radius:var(--r-pill);
+  background:var(--bg-surface-tonal);
+  overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+#view-monitor .mon-seg::-webkit-scrollbar{display:none;}
+#view-monitor .mon-seg button{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  height:44px;padding:0 12px;border-radius:var(--r-pill);
+  font-size:13px;font-weight:550;letter-spacing:-.005em;
+  color:var(--text-secondary);white-space:nowrap;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-monitor .mon-seg button:hover{color:var(--text-primary);}
+#view-monitor .mon-seg button:active{transform:scale(.97);}
+#view-monitor .mon-seg button[aria-pressed="true"]{
+  background:var(--accent-soft);color:var(--accent);
+  box-shadow:inset 0 0 0 1px rgba(107,138,253,.22);
+}
+#view-monitor .mon-wall{flex:none;margin-left:auto;color:var(--text-secondary);}
+#view-monitor .mon-wall[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);}
+#view-monitor .mon-refresh{flex:none;margin-left:0;}
+/* 铺满 / 完整：竖屏工具条里的文字胶囊（44 命中） */
+#view-monitor .mon-fitbtn{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  min-width:44px;height:44px;padding:0 12px;border-radius:var(--r-pill);
+  font-size:13px;font-weight:550;letter-spacing:-.005em;white-space:nowrap;
+  color:var(--text-secondary);
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-monitor .mon-fitbtn:hover{color:var(--text-primary);background:var(--bg-surface-tonal);}
+#view-monitor .mon-fitbtn:active{transform:scale(.97);}
+#view-monitor .mon-fitbtn[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);}
+#view-monitor.is-wall .mon-fitbtn{display:none;}
+
+/* ---------- 补台提示 ---------- */
+#view-monitor .mon-note{
+  display:flex;align-items:center;gap:var(--sp-3);
+  margin-bottom:var(--sp-3);padding:8px 8px 8px var(--sp-4);
+  border-radius:var(--r-inner);
+  background:var(--bg-surface-tonal);
+}
+#view-monitor .mon-note__t{
+  flex:1 1 auto;min-width:0;font-size:13px;line-height:1.5;
+  color:var(--text-secondary);
+}
+#view-monitor .mon-note__b{flex:none;height:44px;padding:0 16px;font-size:13px;}
+
+/* ---------- 栅格 ---------- */
+#view-monitor .mon-grid{
+  display:grid;gap:var(--sp-3);
+  grid-template-columns:minmax(0,1fr);
+  margin-bottom:var(--sp-4);
+}
+#view-monitor .mon-grid.mon-lay-2,
+#view-monitor .mon-grid.mon-lay-2x2{grid-template-columns:repeat(2,minmax(0,1fr));}
+/* 自适应（竖屏）：1 路单列；2 路单列；3 路 1 大 2 小；4 路 2×2；5–6 路 2 列 */
+#view-monitor .mon-grid.mon-lay-auto.mon-count-3,
+#view-monitor .mon-grid.mon-lay-auto.mon-count-4,
+#view-monitor .mon-grid.mon-lay-auto.mon-count-5,
+#view-monitor .mon-grid.mon-lay-auto.mon-count-6{grid-template-columns:repeat(2,minmax(0,1fr));}
+#view-monitor .mon-grid.mon-lay-auto.mon-count-3:not(.is-focus) > .mon-cell:first-child{grid-column:1 / -1;}
+
+/* 横屏 / 宽屏：2 路横排；3 路左大右二；4 路 2×2；5–6 路 3×2 */
+@media (min-width:680px), (orientation:landscape){
+  #view-monitor .mon-grid.mon-lay-auto.mon-count-2{grid-template-columns:repeat(2,minmax(0,1fr));}
+  #view-monitor .mon-grid.mon-lay-auto.mon-count-3{grid-template-columns:2fr 1fr;}
+  #view-monitor .mon-grid.mon-lay-auto.mon-count-3:not(.is-focus) > .mon-cell:first-child{
+    grid-column:1;grid-row:1 / span 2;align-self:center;height:auto;
+  }
+  #view-monitor .mon-grid.mon-lay-auto.mon-count-4{grid-template-columns:repeat(2,minmax(0,1fr));}
+  #view-monitor .mon-grid.mon-lay-auto.mon-count-5,
+  #view-monitor .mon-grid.mon-lay-auto.mon-count-6{grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+
+/* ---------- 格子 ---------- */
+#view-monitor .mon-cell{
+  position:relative;display:block;min-width:0;
+  aspect-ratio:16/9;
+  border-radius:var(--r-inner);
+  overflow:hidden;isolation:isolate;
+  background:#0b0c0e;
+  box-shadow:var(--shadow-ambient);
+  animation:monIn 260ms var(--ease) backwards;
+  transition:opacity 220ms var(--ease),transform 220ms var(--ease);
+  /* 长按拖动：手势不让 WebView 抢走（滚动 / 双击缩放 / 系统长按菜单） */
+  touch-action:none;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
+@keyframes monIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+#view-monitor .mon-cell.is-out{opacity:0;transform:scale(.98);pointer-events:none;}
+#view-monitor .mon-cell.is-dragging{
+  z-index:9;
+  box-shadow:0 18px 40px rgba(0,0,0,.45);
+  will-change:transform;
+}
+#view-monitor .mon-cell.is-dragging .mon-cell__hit{cursor:grabbing;}
+
+#view-monitor .mon-cell__video{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:cover;background:#0b0c0e;
+  /* video 不吞事件：点击/长按/拖动都落到下面的 .mon-cell__hit */
+  pointer-events:none;
+}
+
+#view-monitor .mon-cell__hit{
+  position:absolute;inset:0;z-index:2;
+  display:block;width:100%;height:100%;
+  border-radius:inherit;background:transparent;cursor:pointer;
+  touch-action:none;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-user-drag:none;
+}
+#view-monitor .mon-cell__hit:focus-visible{
+  outline:none;box-shadow:inset 0 0 0 1.5px #fff,inset 0 0 0 3px rgba(11,87,208,.65);
+}
+
+/* 底部信息 */
+#view-monitor .mon-cell__bar{
+  position:absolute;left:0;right:0;bottom:0;z-index:3;
+  display:none;align-items:flex-end;gap:8px;
+  padding:24px 10px 8px;pointer-events:none;
+  color:#fff;
+  background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.72));
+}
+#view-monitor .mon-cell__dot{
+  width:6px;height:6px;flex:none;border-radius:9999px;
+  margin-bottom:5px;background:#8ab4f8;
+  box-shadow:0 0 0 3px rgba(138,180,248,.18);
+}
+#view-monitor .mon-cell__txt{flex:1 1 auto;min-width:0;line-height:1.25;}
+#view-monitor .mon-cell__txt b{
+  display:block;font-size:12px;font-weight:600;letter-spacing:-.01em;
+}
+#view-monitor .mon-cell__txt i{
+  display:block;font-style:normal;font-size:11px;margin-top:1px;
+  color:rgba(255,255,255,.72);
+}
+#view-monitor .mon-cell[data-state="playing"] .mon-cell__bar{display:flex;}
+
+/* 删格 */
+#view-monitor .mon-cell__del{
+  position:absolute;top:2px;right:2px;z-index:4;
+  display:grid;place-items:center;
+  width:44px;height:44px;border-radius:9999px;
+  color:#fff;background:transparent;
+  transition:transform var(--dur) var(--ease);
+}
+#view-monitor .mon-cell__del::before{
+  content:"";position:absolute;inset:8px;border-radius:9999px;
+  background:rgba(8,9,10,.46);
+  transition:background var(--dur) var(--ease);
+}
+#view-monitor .mon-cell__del:hover::before{background:rgba(8,9,10,.7);}
+#view-monitor .mon-cell__del svg{position:relative;z-index:1;width:16px;height:16px;}
+#view-monitor .mon-cell__del:active{transform:scale(.94);}
+
+/* 有声角标：左上角一颗小喇叭，只在 .is-sounding 时露出，不挡画面 */
+#view-monitor .mon-cell__snd{
+  position:absolute;left:6px;top:6px;z-index:4;
+  display:none;place-items:center;
+  width:22px;height:22px;border-radius:9999px;
+  background:rgba(8,9,10,.56);color:#fff;
+  pointer-events:none;
+}
+#view-monitor .mon-cell__snd svg{width:14px;height:14px;}
+#view-monitor .mon-cell.is-sounding .mon-cell__snd{display:grid;}
+#view-monitor .mon-cell.is-sounding::before{
+  content:"";position:absolute;inset:0;z-index:6;
+  border-radius:inherit;pointer-events:none;
+  box-shadow:inset 0 0 0 1.5px rgba(168,199,250,.55);
+}
+
+/* 状态层 */
+#view-monitor .mon-cell__state{
+  position:absolute;inset:0;z-index:3;
+  display:grid;place-content:center;justify-items:center;gap:4px;
+  padding:10px;text-align:center;
+  background:var(--bg-surface-tonal);color:var(--text-muted);
+  pointer-events:none;
+}
+#view-monitor .mon-cell[data-state="playing"] .mon-cell__state{display:none;}
+#view-monitor .mon-cell__st{
+  max-width:100%;font-size:12.5px;font-weight:600;letter-spacing:-.01em;
+  color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#view-monitor .mon-cell__ss{display:none;font-size:11px;line-height:1.4;max-width:100%;overflow-wrap:anywhere;}
+#view-monitor .mon-spin{
+  width:18px;height:18px;border-radius:9999px;
+  border:2px solid var(--border-strong);border-top-color:var(--accent);
+  animation:monSpin 900ms linear infinite;
+}
+@keyframes monSpin{to{transform:rotate(360deg);}}
+#view-monitor .mon-cell[data-state="dead"] .mon-spin,
+#view-monitor .mon-cell[data-state="offline"] .mon-spin,
+#view-monitor .mon-cell[data-state="paused"] .mon-spin,
+#view-monitor .mon-cell[data-state="idle"] .mon-spin{display:none;}
+#view-monitor .mon-cell__retry{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:44px;padding:0 14px;margin-top:2px;
+  border-radius:var(--r-pill);
+  background:transparent;color:var(--accent);
+  font-size:13px;font-weight:600;
+  pointer-events:auto;
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-monitor .mon-cell__retry:hover{background:var(--bg-surface);}
+#view-monitor .mon-cell__retry:active{transform:scale(.97);}
+
+/* ---------- 骨架 ---------- */
+#view-monitor .mon-skel{margin-bottom:var(--sp-4);}
+#view-monitor .mon-sk{
+  aspect-ratio:16/9;border-radius:var(--r-inner);
+  background:var(--bg-surface-tonal);
+  animation:monSkel 1.5s var(--ease) infinite;
+}
+@keyframes monSkel{0%,100%{opacity:.55;}50%{opacity:1;}}
+
+/* ---------- 空态 ---------- */
+#view-monitor .mon-empty{
+  display:grid;justify-items:center;gap:var(--sp-3);
+  padding:var(--sp-7) var(--sp-5);
+  border-radius:var(--r-card);
+  background:var(--bg-surface-tonal);
+  text-align:center;
+}
+#view-monitor .mon-empty__art{
+  width:72px;height:72px;border-radius:9999px;
+  display:grid;place-items:center;
+  background:var(--bg-surface);color:var(--text-muted);
+}
+#view-monitor .mon-empty__s{
+  max-width:34ch;font-size:13px;line-height:1.6;color:var(--text-muted);
+}
+#view-monitor .mon-empty .btn{margin-top:var(--sp-1);}
+
+#view-monitor .mon-foot{
+  margin-top:var(--sp-2);font-size:12px;line-height:1.6;
+  color:var(--text-muted);
+}
+
+/* ============================================================
+   焦点：一大多小（在栅格内完成，同一个 <video> 不换节点）
+   ============================================================ */
+/* 焦点态收起页头/工具条，让大格回到页面顶部（墙内本来就连页头一起隐藏） */
+#view-monitor.is-focusing .mon-head,
+#view-monitor.is-focusing .mon-tools,
+#view-monitor.is-focusing .mon-note,
+#view-monitor.is-focusing .mon-foot{display:none;}
+#view-monitor .mon-grid.is-focus{
+  grid-template-columns:2fr 1fr;
+  gap:6px;
+}
+#view-monitor .mon-grid.is-focus .mon-cell.is-focus-main{
+  grid-column:1;grid-row:1 / -1;
+  align-self:center;justify-self:stretch;
+  width:100%;height:auto;max-height:100%;aspect-ratio:16/9;
+  border-radius:12px;background:#000;
+}
+#view-monitor .mon-grid.is-focus .mon-cell.is-focus-main .mon-cell__video{
+  object-fit:contain;background:#000;
+}
+#view-monitor .mon-grid.is-focus .mon-cell.is-focus-main .mon-cell__bar{display:none;}
+#view-monitor .mon-grid.is-focus .mon-cell.is-focus-main::after{
+  content:"";position:absolute;inset:0;z-index:5;
+  border-radius:inherit;pointer-events:none;
+  box-shadow:inset 0 0 0 1.5px var(--accent);
+}
+#view-monitor .mon-grid.is-focus .mon-cell.is-focus-mini{
+  grid-column:2;grid-row:auto;
+  width:100%;height:100%;aspect-ratio:auto;
+  border-radius:12px;
+}
+#view-monitor .mon-grid.is-focus .mon-cell.is-focus-mini .mon-cell__video{object-fit:cover;}
+#view-monitor .mon-grid.is-focus .mon-cell.is-focus-mini .mon-cell__bar,
+#view-monitor .mon-grid.is-focus .mon-cell.is-focus-mini .mon-cell__del{display:none;}
+#view-monitor .mon-grid.is-focus .mon-cell.is-focus-mini .mon-cell__st{font-size:11px;}
+#view-monitor .mon-grid.is-focus .mon-cell.is-focus-mini .mon-cell__ss{display:none;}
+
+@media (orientation:landscape){
+  #view-monitor:not(.is-wall) .mon-grid.is-focus{aspect-ratio:8 / 3;}
+}
+
+/* 竖屏：大格在上、缩略在下一排（2/3 左右分栏在 390px 宽下会把焦点压到 130px 高） */
+@media (orientation:portrait){
+  #view-monitor .mon-grid.is-focus{grid-template-columns:repeat(3,minmax(0,1fr));}
+  #view-monitor .mon-grid.is-focus .mon-cell.is-focus-main{
+    grid-column:1 / -1;grid-row:1;
+    align-self:stretch;width:100%;height:auto;aspect-ratio:16/9;
+  }
+  #view-monitor .mon-grid.is-focus .mon-cell.is-focus-mini{
+    grid-column:auto;grid-row:auto;
+    width:100%;height:auto;aspect-ratio:16/9;
+  }
+}
+
+/* 焦点信息条（名称 / 标题 / 在线人数 / 声音 / 收起） */
+#view-monitor .mon-focusbar{
+  position:fixed;left:50%;z-index:44;
+  bottom:calc(84px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);
+  display:flex;align-items:center;gap:8px;
+  max-width:calc(100vw - 24px);
+  padding:6px 6px 6px 14px;
+  border-radius:9999px;
+  background:rgba(12,13,15,.85);
+  color:#fff;
+  box-shadow:0 10px 30px rgba(0,0,0,.42);
+  transition:opacity 200ms var(--ease),transform 200ms var(--ease);
+}
+#view-monitor .mon-focusbar[hidden]{display:none;}
+#view-monitor .mon-focus__txt{min-width:0;max-width:44vw;}
+#view-monitor .mon-focus__txt b{
+  display:block;font-size:13px;font-weight:600;letter-spacing:-.01em;
+}
+#view-monitor .mon-focus__txt i{
+  display:block;font-style:normal;font-size:11.5px;margin-top:2px;
+  color:rgba(255,255,255,.72);
+}
+#view-monitor .mon-focus__online{
+  flex:none;font-size:11.5px;font-weight:550;
+  color:rgba(255,255,255,.72);white-space:nowrap;
+  padding-right:2px;
+}
+#view-monitor .mon-focus__online:empty{display:none;}
+#view-monitor .mon-ovbtn{
+  display:grid;place-items:center;flex:none;
+  width:44px;height:44px;border-radius:9999px;
+  color:#fff;background:rgba(255,255,255,.14);
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-monitor .mon-ovbtn:hover{background:rgba(255,255,255,.24);}
+#view-monitor .mon-ovbtn:active{transform:scale(.94);}
+
+/* ============================================================
+   横屏墙（.is-wall）：铺满视口、纯黑底、最多 6 路 16:9
+   ============================================================ */
+#view-monitor.is-wall{
+  position:fixed;inset:0;z-index:43;
+  margin:0;padding:0;
+  overflow:hidden;overscroll-behavior:none;
+  background:#000;color:#fff;
+}
+#view-monitor.is-wall .mon-wrap{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  max-width:none;margin:0;
+  padding:calc(52px + env(safe-area-inset-top,0px))
+          calc(6px + env(safe-area-inset-right,0px))
+          calc(6px + env(safe-area-inset-bottom,0px))
+          calc(6px + env(safe-area-inset-left,0px));
+}
+#view-monitor.is-wall .mon-head,
+#view-monitor.is-wall .mon-tools,
+#view-monitor.is-wall .mon-note,
+#view-monitor.is-wall .mon-foot,
+#view-monitor.is-wall .mon-empty,
+#view-monitor.is-wall .mon-skel{display:none !important;}
+
+/* 墙内瓦片：间距 6。默认「铺满」——整块宽高 100%，行高 1fr 均分，格子不再锁 16:9 */
+#view-monitor.is-wall .mon-grid{
+  --wmul:2.6667;--wgapw:12px;--wgaph:6px;
+  flex:1 1 auto;min-width:0;min-height:0;
+  width:100%;height:100%;margin:0;
+  gap:6px;
+  align-content:stretch;justify-content:stretch;
+  grid-auto-rows:minmax(0,1fr);
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+#view-monitor.is-wall .mon-grid.mon-count-1{
+  --wmul:1.7778;--wgapw:0px;--wgaph:0px;
+  grid-template-columns:minmax(0,1fr);
+}
+#view-monitor.is-wall .mon-grid.mon-count-2{
+  --wmul:3.5556;--wgapw:6px;--wgaph:0px;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+#view-monitor.is-wall .mon-grid.mon-count-3{
+  /* 2 列 × 2 行、大格跨两行：整块宽高比 = 16*2 / (9*2) ≈ 2.6667，吃满高度 */
+  --wmul:2.6667;--wgapw:6px;--wgaph:6px;
+  grid-template-columns:2fr 1fr;
+}
+#view-monitor.is-wall .mon-grid.mon-count-3:not(.is-focus) > .mon-cell:first-child{
+  grid-column:1;grid-row:1 / span 2;align-self:center;height:auto;
+}
+#view-monitor.is-wall .mon-grid.mon-count-4{
+  --wmul:1.7778;--wgapw:6px;--wgaph:6px;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+#view-monitor.is-wall .mon-grid.mon-count-5,
+#view-monitor.is-wall .mon-grid.mon-count-6{
+  --wmul:2.6667;--wgapw:12px;--wgaph:6px;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+
+/* 「完整」：格子回到 16:9，整块按高度算宽度、margin:auto 等比居中（原来的观感） */
+#view-monitor.is-wall .mon-grid.is-fit-contain{
+  flex:0 0 auto;
+  width:min(100%, calc((100vh - 58px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - var(--wgaph)) * var(--wmul) + var(--wgapw)));
+  height:auto;
+  margin:auto;
+  align-content:center;justify-content:center;
+  grid-auto-rows:auto;
+}
+#view-monitor.is-wall .mon-grid.is-fit-contain > .mon-cell{aspect-ratio:16/9;height:auto;}
+#view-monitor.is-wall .mon-grid.is-fit-contain > .mon-cell .mon-cell__video{object-fit:contain;}
+
+#view-monitor.is-wall .mon-cell{
+  width:100%;border-radius:12px;box-shadow:none;
+}
+/* 铺满：格子撑满自己的格子位（不再 aspect-ratio 等比缩），video cover 裁切。
+   焦点大格单独处理（横屏那条规则），竖屏手动进墙时它仍保 16:9，避免行高算成 0 */
+#view-monitor.is-wall .mon-grid:not(.is-fit-contain) > .mon-cell:not(.is-focus-main){
+  height:100%;min-height:0;aspect-ratio:auto;
+}
+#view-monitor.is-wall .mon-grid:not(.is-fit-contain) > .mon-cell .mon-cell__video{object-fit:cover;}
+/* 3 路：大格跨两行时也跟着铺满，不再按 16:9 居中留黑（完整模式保持居中） */
+#view-monitor.is-wall .mon-grid.mon-count-3:not(.is-focus):not(.is-fit-contain) > .mon-cell:first-child{
+  align-self:stretch;height:100%;
+}
+#view-monitor.is-wall .mon-cell__state{background:#0b0c0e;border-radius:inherit;}
+
+/* 墙内焦点（横屏）：左 2/3 + 右列等分缩略；竖屏手动进墙时沿用上大下小 */
+@media (orientation:landscape){
+  #view-monitor.is-wall .mon-grid.is-focus{
+    flex:1 1 auto;min-height:0;
+    width:100%;height:auto;margin:0;
+    align-content:stretch;
+    grid-template-columns:2fr 1fr;
+  }
+  #view-monitor.is-wall .mon-grid.is-focus .mon-cell.is-focus-main{
+    grid-column:1;grid-row:1 / -1;
+    width:100%;height:auto;max-height:100%;aspect-ratio:16/9;
+  }
+  #view-monitor.is-wall .mon-grid.is-focus .mon-cell.is-focus-mini{
+    grid-column:2;grid-row:auto;
+    width:100%;height:100%;aspect-ratio:auto;
+  }
+  /* 铺满：焦点大格也吃满左列（不再按 16:9 上下留黑） */
+  #view-monitor.is-wall .mon-grid.is-focus:not(.is-fit-contain) .mon-cell.is-focus-main{
+    height:100%;max-height:none;aspect-ratio:auto;align-self:stretch;
+  }
+  #view-monitor.is-wall .mon-grid.is-focus:not(.is-fit-contain) .mon-cell.is-focus-main .mon-cell__video{
+    object-fit:cover;
+  }
+}
+#view-monitor.is-wall .mon-focusbar{
+  bottom:calc(12px + env(safe-area-inset-bottom,0px));
+}
+
+/* 墙内顶栏：半透明一排小按钮，36 视觉 / 44 命中，3.5s 无操作淡出 */
+#view-monitor .mon-wallbar{
+  position:absolute;left:50%;z-index:6;
+  top:calc(6px + env(safe-area-inset-top,0px));
+  transform:translateX(-50%);
+  display:none;align-items:center;gap:8px;
+  padding:4px;border-radius:9999px;
+  background:rgba(16,17,19,.62);
+  transition:opacity 220ms var(--ease),transform 220ms var(--ease);
+}
+#view-monitor.is-wall .mon-wallbar{display:flex;}
+#view-monitor .mon-wallbar.is-away{
+  opacity:0;pointer-events:none;
+  transform:translate(-50%,-6px);
+}
+#view-monitor .mon-wbtn{
+  position:relative;
+  display:inline-flex;align-items:center;gap:6px;
+  height:36px;padding:0 12px;border-radius:9999px;
+  font-size:12.5px;font-weight:560;letter-spacing:-.005em;
+  color:#fff;background:rgba(255,255,255,.12);white-space:nowrap;
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+#view-monitor .mon-wbtn>span:first-child{display:inline-flex;}
+#view-monitor .mon-wbtn svg{width:16px;height:16px;}
+#view-monitor .mon-wbtn::after{
+  content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px;
+  border-radius:inherit;
+}
+#view-monitor .mon-wbtn:hover{background:rgba(255,255,255,.22);}
+#view-monitor .mon-wbtn:active{transform:scale(.96);}
+
+/* ---------- 响应式 ---------- */
+@media (min-width:680px){
+  #view-monitor .mon-grid{gap:var(--sp-4);}
+  #view-monitor .mon-cell__txt b{font-size:13px;}
+  #view-monitor .mon-cell__txt i{font-size:12px;}
+}
+@media (max-width:679px){
+  #view-monitor .mon-skel.mon-lay-auto{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media (max-width:400px){
+  #view-monitor .mon-seg button{padding:0 10px;font-size:12px;}
+  #view-monitor .mon-title{font-size:22px;}
+  #view-monitor .mon-sub{font-size:12px;}
+  #view-monitor .mon-add{padding:0 12px;}
+  #view-monitor .mon-fitbtn{padding:0 8px;font-size:12px;}
+  #view-monitor .mon-focus__txt{max-width:38vw;}
+}
+
+/* ============================================================
+   加一路 · 「已添加的主播」快捷列表
+   这块 DOM 落在 #sheet-body 里（不在 #view-monitor 内），所以不加视图前缀，
+   只用 mon- 前缀保证不和别处撞名。行高 52 ≥ 44 触控。
+   ============================================================ */
+.mon-pick{margin-bottom:var(--sp-4);}
+.mon-pick__h{
+  font-size:11.5px;font-weight:600;letter-spacing:.04em;
+  color:var(--text-muted);margin-bottom:var(--sp-2);
+}
+.mon-pick__list{display:grid;gap:2px;}
+.mon-pick__row{
+  display:flex;align-items:center;gap:10px;width:100%;min-height:52px;
+  padding:6px 8px;border-radius:var(--r-sm);text-align:left;
+  transition:background var(--dur) var(--ease),transform var(--dur) var(--ease);
+  -webkit-tap-highlight-color:transparent;
+}
+.mon-pick__row:hover{background:var(--bg-surface-tonal);}
+.mon-pick__row:active{background:var(--bg-surface-hover);transform:scale(.995);}
+.mon-pick__av{
+  position:relative;flex:none;overflow:hidden;
+  display:grid;place-items:center;
+  width:38px;height:38px;border-radius:9999px;
+  background:var(--accent-tonal);color:var(--accent);
+  font-size:14px;font-weight:600;letter-spacing:.01em;
+}
+.mon-pick__av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.mon-pick__t{flex:1 1 auto;min-width:0;display:block;line-height:1.25;}
+.mon-pick__n{
+  display:block;font-size:13.5px;font-weight:600;letter-spacing:-.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.mon-pick__r{
+  display:block;margin-top:2px;font-style:normal;
+  font-size:11.5px;color:var(--text-muted);
+}
+.mon-pick__ico{
+  flex:none;display:grid;place-items:center;
+  width:28px;height:28px;color:var(--text-muted);
+}
+.mon-pick__empty{
+  padding:2px 2px var(--sp-2);font-size:12.5px;line-height:1.6;
+  color:var(--text-muted);
+}
+.mon-pick__div{height:1px;background:var(--border-hairline);margin:var(--sp-3) 0 var(--sp-4);}
+.mon-pick__lab{
+  font-size:12.5px;font-weight:600;color:var(--text-secondary);
+  margin-bottom:var(--sp-2);
+}
+
+/* 竖屏：瓦片允许从画面上起手纵向滚动页面（六路时一屏放不下）；
+   长按拖动期间由 touchmove preventDefault 接管，不影响排序。
+   横屏墙里没有页面滚动，保持 none。 */
+#view-monitor:not(.is-wall) .mon-cell,
+#view-monitor:not(.is-wall) .mon-cell__hit{touch-action:pan-y;}
+
+/* ============================================================
+   8.1 · 墙铺满（真·满屏）：工具条浮在画面上，不再占 52px 顶栏；
+   grid 行数明确写死，格子 height:100% 撑满，消灭上下黑边。
+   ============================================================ */
+#view-monitor.is-wall .mon-wrap{
+  padding:4px;
+  padding-top:calc(4px + env(safe-area-inset-top,0px));
+  padding-bottom:calc(4px + env(safe-area-inset-bottom,0px));
+  padding-left:calc(4px + env(safe-area-inset-left,0px));
+  padding-right:calc(4px + env(safe-area-inset-right,0px));
+}
+#view-monitor.is-wall .mon-grid:not(.is-fit-contain):not(.is-focus){
+  grid-template-rows:repeat(1,minmax(0,1fr));
+}
+#view-monitor.is-wall .mon-grid.mon-count-3:not(.is-fit-contain):not(.is-focus),
+#view-monitor.is-wall .mon-grid.mon-count-4:not(.is-fit-contain):not(.is-focus),
+#view-monitor.is-wall .mon-grid.mon-count-5:not(.is-fit-contain):not(.is-focus),
+#view-monitor.is-wall .mon-grid.mon-count-6:not(.is-fit-contain):not(.is-focus){
+  grid-template-rows:repeat(2,minmax(0,1fr));
+}
+#view-monitor.is-wall .mon-grid:not(.is-fit-contain) > .mon-cell{
+  height:100%;min-height:0;align-self:stretch;
+}
+/* 完整模式的宽度公式按新的 8px 上下留白重算 */
+#view-monitor.is-wall .mon-grid.is-fit-contain{
+  width:min(100%, calc((100vh - 16px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - var(--wgaph)) * var(--wmul) + var(--wgapw)));
+}

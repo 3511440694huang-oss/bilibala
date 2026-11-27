@@ -1,0 +1,35 @@
+<section class="view" id="view-playlist" data-view="playlist" hidden>
+  <div class="pl-page">
+    <header class="pl-head">
+      <div class="pl-head__text">
+        <p class="eyebrow">LIBRARY</p>
+        <h1 class="h1">歌单</h1>
+        <p class="pl-lede muted">B 站合集、收藏夹与分 P，导进来就是一条能一直放下去的电台。</p>
+      </div>
+      <div class="pl-head__actions">
+        <button class="icon-btn" id="pl-refresh" type="button" aria-label="刷新歌单" data-ico="refresh"></button>
+        <button class="btn btn--sm pl-head__import" id="pl-import-open" type="button" aria-haspopup="dialog">
+          <span class="pl-ico" data-ico="link" aria-hidden="true"></span>
+          <span>导入</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="pl-now" id="pl-now" hidden>
+      <button class="pl-now__btn" id="pl-now-go" type="button" data-act="now-channel" aria-label="正在播放，点进频道看画面">
+        <span class="pl-now__eq" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="pl-now__text">
+          <span class="pl-now__title truncate" data-now-title>正在播放</span>
+          <span class="pl-now__sub dim" data-now-sub>正在播 · 点进频道看画面</span>
+        </span>
+        <span class="pl-now__chev" aria-hidden="true" data-ico="chevron"></span>
+      </button>
+    </div>
+
+    <div class="pl-lists" id="pl-lists-wrap">
+      <div id="pl-lists" aria-live="polite"></div>
+    </div>
+
+    <section class="pl-detail" id="pl-detail" hidden aria-live="polite"></section>
+  </div>
+</section>

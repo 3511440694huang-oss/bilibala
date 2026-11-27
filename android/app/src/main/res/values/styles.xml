@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 系统栏跟着页面底色走，不要再用品牌旧红（#FF3B4E 是 2.x 红底版本留下的，
+         3.x 已经换青绿，红色状态栏在深色页面上像一条故障条）。 -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:statusBarColor">#0B0C0E</item>
+        <item name="android:navigationBarColor">#0B0C0E</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:windowBackground">#0B0C0E</item>
+    </style>
+</resources>

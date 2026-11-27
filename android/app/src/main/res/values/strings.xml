@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">哔哩吧啦</string>
+    <string name="channel_name">哔哩吧啦播放</string>
+    <string name="channel_desc">24 小时直播回放后台播放控制</string>
+    <string name="notif_title">哔哩吧啦</string>
+    <string name="notif_text">正在播放</string>
+</resources>

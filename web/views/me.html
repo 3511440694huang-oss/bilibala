@@ -1,0 +1,38 @@
+<section class="view view--page" id="view-me" data-view="me" hidden>
+  <header class="me-top">
+    <div class="me-top__bar">
+      <button class="icon-btn" id="me-close" type="button" aria-label="返回" data-ico="close"></button>
+      <h1 class="me-top__title h3">我的</h1>
+      <button class="icon-btn" id="me-refresh" type="button" aria-label="刷新" data-ico="refresh"></button>
+    </div>
+  </header>
+
+  <div class="me-page">
+    <div class="me-body">
+      <section class="me-profile" id="me-account" aria-live="polite" aria-label="账号"></section>
+
+      <section class="me-section" aria-labelledby="me-dyn-title">
+        <div class="me-sec-head">
+          <h2 class="h3" id="me-dyn-title">动态</h2>
+          <span class="me-sec-note dim" id="me-feed-note"></span>
+        </div>
+        <div class="me-feed" id="me-feed" aria-live="polite"></div>
+      </section>
+
+      <section class="me-section" aria-labelledby="me-set-title">
+        <div class="me-sec-head">
+          <h2 class="h3" id="me-set-title">设置</h2>
+          <span class="me-sec-note dim">立即生效</span>
+        </div>
+        <div class="me-settings" id="me-settings"></div>
+      </section>
+
+      <section class="me-section" aria-labelledby="me-about-title">
+        <div class="me-sec-head">
+          <h2 class="h3" id="me-about-title">关于</h2>
+        </div>
+        <div class="me-about" id="me-about"></div>
+      </section>
+    </div>
+  </div>
+</section>
