@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#131314">
+<meta name="color-scheme" content="dark light">
+<title>哔哩吧啦</title>
+<script>
+window.__E=[];
+addEventListener('error',function(e){var er=e.error;if(er&&er.name==='RuntimeException')return;__E.push(String(e.message||e.error||''))});
+addEventListener('unhandledrejection',function(e){var m=String((e.reason&&e.reason.message)||e.reason||'');if(m.indexOf('play() request was interrupted')>=0)return;__E.push('rej:'+m)});
+</script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-route="channel">
+
+<div class="ambient" aria-hidden="true"></div>
+<a class="skip sr-only" href="#main">跳到内容</a>
+
+<div class="boot" id="boot" aria-hidden="true">
+  <span class="boot__mark"></span>
+  <span class="boot__line"><i></i></span>
+</div>
+
+<header class="top" id="top">
+  <button class="station" id="st-btn" type="button" aria-haspopup="dialog" aria-label="切换主播" aria-description="点击打开主播列表，左右滑动快速切换上一位或下一位主播">
+    <span class="station__av" id="st-av"></span>
+    <span class="station__txt">
+      <b id="st-name">还没有主播</b>
+      <i id="st-sub">点这里添加</i>
+    </span>
+    <span class="station__chev" id="st-chev"></span>
+  </button>
+  <div class="top__right">
+    <span class="livedot" id="top-live" hidden><i></i>在播</span>
+    <button class="icon-btn" id="btn-me" type="button" aria-label="我的">
+      <span class="avatar avatar--sm" id="acct-av">我</span>
+    </button>
+  </div>
+</header>
+
+<main class="stage" id="main">
+<section class="view" id="view-channel" data-view="channel" hidden>
+  <!-- ============================================================
+       画面层级约定（#ch-media 是 isolation:isolate 的独立栈；新层别越过这些数）
+         0  .ch-poster      海报（暗淡底）
+         1  #player         video：画面本体，唯一进度真相
+         2  .ch-vignette    顶部暗渐变
+         3  #ch-hold        切清晰度时的「定格最后一帧」，挡住黑屏
+         4  #dm-canvas      弹幕（20-danmaku / 21-dm-ui 维护）
+         5  （手势层）      36-gesture.js 的透明层放这一档，单击/双击仍由播放内核在
+                             document 捕获段处理，所以挡住也不影响播放交互
+         6  #ch-idle        空闲 CTA
+         7  #ch-shield      锁屏挡板：只有 .is-locked 时才出现，吞掉所有误触
+         8  #ch-fs/#ch-lock 画面角标（44×44）
+         9  提示 pill       loading / stall / boost / hint
+       规则：video 不外包一层，弹幕在 video 之上、控件之下；角标一律 ≥44。
+       ============================================================ -->
+  <div class="ch">
+    <div class="ch__main">
+      <article class="ch-stage is-idle" id="ch-stage" aria-label="播放器">
+        <div class="ch-media" id="ch-media" role="group" aria-label="播放画面：单击显隐控制，双击左右两侧快退快进，长按两倍速">
+          <img class="ch-poster" id="ch-poster" alt="" hidden>
+          <video id="player" playsinline preload="auto" muted disablepictureinpicture></video>
+          <canvas class="ch-hold" id="ch-hold" aria-hidden="true" hidden></canvas>
+          <canvas class="ch-dm" id="dm-canvas" aria-hidden="true"></canvas>
+          <span class="ch-vignette" aria-hidden="true"></span>
+
+          <div class="ch-idle" id="ch-idle">
+            <span class="ch-mark" aria-hidden="true"><span data-ico="broadcast"></span></span>
+            <p class="ch-idle__line" id="ch-idle-line">把 24 小时回放排成电台</p>
+            <button class="btn ch-cta" id="ch-idle-play" type="button"><span data-ico="play"></span><span id="ch-idle-play-txt">开始收听</span></button>
+          </div>
+
+          <div class="ch-shield" id="ch-shield" aria-hidden="true" hidden></div>
+
+          <button class="ch-lock" id="ch-lock" type="button" aria-label="锁定画面，防误触" aria-pressed="false" data-state="unlocked">
+            <span class="ch-lockico ch-lockico--off" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false"><rect x="4.5" y="10.6" width="15" height="9.4" rx="3"/><path d="M8.2 10.6V8.2a3.8 3.8 0 0 1 7.2-1.3"/></svg></span>
+            <span class="ch-lockico ch-lockico--on" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false"><rect x="4.5" y="10.6" width="15" height="9.4" rx="3"/><path d="M8.2 10.6V8a3.8 3.8 0 0 1 7.6 0v2.6"/></svg></span>
+          </button>
+
+          <button class="ch-fs icon-btn" id="ch-fs" type="button" aria-label="全屏播放"><span data-ico="expand"></span></button>
+
+          <div class="ch-loading" id="ch-loading" hidden>
+            <i aria-hidden="true"></i><span>正在取流</span>
+          </div>
+          <span class="ch-stall" id="ch-stall" role="status" hidden><i aria-hidden="true"></i><span id="ch-stall-txt">声音缓冲中</span></span>
+          <span class="ch-boost" id="ch-boost" hidden><b>2×</b> 快进中</span>
+          <span class="ch-hint" id="ch-hint" aria-hidden="true"></span>
+        </div>
+
+        <div class="ch-body">
+          <p class="sr-only" id="ch-state" aria-live="polite">未播放</p>
+
+          <div class="ch-head">
+            <div class="ch-head__txt">
+              <h1 class="ch-title" id="np-title">还没有在放</h1>
+              <button class="ch-qnbtn" id="ch-qn" type="button" aria-haspopup="dialog" aria-label="清晰度 自动，点开切换" data-qn="0">自动</button>
+              <p class="ch-meta truncate" id="ch-meta" hidden></p>
+            </div>
+            <div class="ch-ep" role="group" aria-label="选集">
+              <button class="ch-tbtn ch-epbtn" id="ch-prev" type="button" aria-label="上一期">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18.6 5.6v12.8L9.2 12z" fill="currentColor" stroke="none"/><path d="M5.6 5.6v12.8"/></svg>
+              </button>
+              <button class="ch-tbtn ch-epbtn" id="ch-next" type="button" aria-label="下一期">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 5.6v12.8L14.8 12z" fill="currentColor" stroke="none"/><path d="M18.4 5.6v12.8"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="ch-prog">
+            <span class="ch-time num" id="ch-elapsed">0:00</span>
+            <div class="ch-track" id="ch-track" role="slider" tabindex="0" aria-label="播放进度"
+                 aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" aria-valuetext="0:00">
+              <span class="ch-rail"><i class="ch-buf" id="ch-buf"></i><i class="ch-fill" id="ch-fill"></i></span>
+              <i class="ch-knob" id="ch-knob"></i>
+              <span class="ch-bubble num" id="ch-bubble" hidden>0:00</span>
+            </div>
+            <span class="ch-time num dim" id="ch-dur">--:--</span>
+          </div>
+
+          <div class="ch-transport" role="group" aria-label="播放控制">
+            <div class="ch-tg">
+              <button class="ch-tbtn" id="ch-back" type="button" aria-label="后退 10 秒"><span data-ico="back10"></span></button>
+              <button class="ch-play" id="ch-toggle" type="button" aria-label="播放"><span data-ico="play"></span></button>
+              <button class="ch-tbtn" id="ch-fwd" type="button" aria-label="前进 10 秒"><span data-ico="fwd10"></span></button>
+            </div>
+            <div class="ch-tg ch-tg--end">
+              <button class="ch-tbtn" id="ch-dm" type="button" aria-label="弹幕" aria-pressed="true"><span data-ico="chat"></span></button>
+              <button class="ch-tbtn ch-rate" id="ch-rate" type="button" aria-label="倍速、清晰度与定时"><span class="num" id="ch-rate-label">1×</span></button>
+              <button class="ch-tbtn" id="ch-queue" type="button" aria-label="播放队列"><span data-ico="list"></span></button>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <section class="ch-band" aria-labelledby="ch-band-ttl">
+      <header class="ch-band__head">
+        <div class="ch-band__text">
+          <p class="eyebrow">频道</p>
+          <h2 class="h2" id="ch-band-ttl">节目带</h2>
+          <p class="ch-band__sub dim">按分类翻，点一期就从这期的开头听</p>
+        </div>
+        <span class="ch-band__count num" id="ch-count"></span>
+      </header>
+
+      <div class="ch-filters" id="ch-filters" role="group" aria-label="按分类筛选"></div>
+
+      <div class="ch-skel" id="ch-skel" hidden aria-hidden="true"></div>
+      <ol class="ch-list" id="ch-list"></ol>
+
+      <div class="ch-more" id="ch-more" hidden>
+        <button class="btn" id="ch-more-btn" type="button">再看一批</button>
+      </div>
+
+      <div class="ch-empty" id="ch-empty" hidden>
+        <span class="ch-empty__ico" aria-hidden="true" data-ico="broadcast"></span>
+        <p class="ch-empty__ttl" id="ch-empty-ttl">节目带还没到</p>
+        <p class="ch-empty__sub" id="ch-empty-sub">检查网络后重试一次</p>
+        <button class="btn" id="ch-retry" type="button">重新加载</button>
+      </div>
+    </section>
+  </div>
+</section>
+
+<section class="view" id="view-live" data-view="live" hidden>
+  <div class="lv-page">
+    <div class="lv-left">
+
+      <div class="lv-stagewrap">
+        <div class="lv-stage card" id="live-stage" data-state="loading">
+          <video id="live-video" class="lv-video" playsinline muted preload="none" disablepictureinpicture poster="/assets/idle.webp"></video>
+          <div class="lv-scrim" aria-hidden="true"></div>
+
+          <div class="lv-top">
+            <span class="lv-badge" id="live-badge" hidden>
+              <i class="lv-dot" aria-hidden="true"></i>
+              <span id="live-badgetxt">直播中</span>
+            </span>
+            <button class="icon-btn lv-fsbtn" id="live-fs" type="button" aria-label="全屏观看" hidden></button>
+          </div>
+
+          <div class="lv-veil" id="live-note">
+            <span class="lv-spin" aria-hidden="true"></span>
+            <p class="lv-note-t" id="live-note-t">正在连到直播间…</p>
+            <button class="btn lv-note-btn" id="live-retry" type="button" hidden>重试</button>
+          </div>
+
+          <div class="lv-veil lv-veil--off" id="live-offline" hidden>
+            <span class="lv-art lv-art--off" aria-hidden="true">
+              <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="25" y="11" width="14" height="24" rx="7"/>
+                <path d="M18.5 30a13.5 13.5 0 0 0 27 0"/>
+                <path d="M32 43.5V51"/>
+                <path d="M24 54h16"/>
+              </svg>
+            </span>
+            <div class="lv-offmsg">
+              <p class="lv-off-t">这会儿没有开播</p>
+              <p class="lv-off-s" id="live-off-s">主播不在直播间。节目带里存着每一次现场。</p>
+              <button class="btn btn--primary lv-off-btn" id="live-go-channel" type="button">去看看节目带</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lv-meta">
+        <div class="lv-meta__main">
+          <h2 class="h2 lv-title clamp-2" id="live-title">直播间</h2>
+          <p class="lv-sub">
+            <span class="lv-sub__name" id="live-uname">主播</span>
+            <span class="lv-sep" aria-hidden="true"></span>
+            <span class="num" id="live-online">人气统计中</span>
+          </p>
+        </div>
+        <div class="lv-ctl" id="live-ctl">
+          <button class="btn lv-qn" id="live-qn" type="button" aria-haspopup="listbox" disabled>原画</button>
+          <button class="icon-btn lv-mute" id="live-mute" type="button" aria-pressed="true" aria-label="声音：已静音" disabled></button>
+          <button class="icon-btn lv-refresh" id="live-refresh" type="button" aria-label="刷新直播流" disabled></button>
+        </div>
+      </div>
+
+    </div>
+
+    <section class="card lv-panel" id="live-panel" aria-label="实时弹幕" hidden>
+      <header class="lv-phead">
+        <span class="eyebrow">实时弹幕</span>
+        <span class="lv-conn" id="live-conn" data-state="idle">
+          <i class="lv-dot" aria-hidden="true"></i>
+          <span id="live-conntxt">未连接</span>
+        </span>
+      </header>
+
+      <div class="lv-feedwrap">
+        <ul class="lv-feed" id="live-chat" role="log" aria-live="polite" aria-relevant="additions"></ul>
+        <div class="lv-feedempty" id="live-chat-empty">
+          <p class="lv-ghost">弹幕还没来。</p>
+          <p class="lv-ghost">开播后这里会滚动直播间的实时消息。</p>
+          <p class="lv-ghost">有想说的，先在下面打个招呼。</p>
+        </div>
+        <button class="btn lv-new" id="live-new" type="button" hidden>
+          <span id="live-newtxt">有新弹幕</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14"/><path d="M6 13l6 6 6-6"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="lv-loginbar" id="live-loginbar" hidden>
+        <span class="lv-loginbar__t">发弹幕要先用 B 站账号登录。</span>
+        <button class="btn" id="live-login" type="button">去登录</button>
+      </div>
+
+      <form class="lv-compose" id="live-form" novalidate>
+        <button class="icon-btn lv-emobtn" id="live-emo-btn" type="button" aria-label="表情" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.25"/>
+            <path d="M8.7 14.1a4.1 4.1 0 0 0 6.6 0"/>
+            <path d="M9.4 9.7h.01"/><path d="M14.6 9.7h.01"/>
+          </svg>
+        </button>
+        <label class="lv-inputwrap">
+          <input class="lv-input" id="live-input" type="text" maxlength="20" autocomplete="off" enterkeyhint="send" aria-label="弹幕内容" placeholder="说点什么…">
+        </label>
+        <button class="btn btn--primary lv-send" id="live-send" type="submit" disabled>发送</button>
+      </form>
+
+      <div class="lv-emopane" id="live-emo" hidden>
+        <div class="lv-emotabs" id="live-emotabs" role="tablist" aria-label="表情分类"></div>
+        <div class="lv-emogrid" id="live-emogrid" role="group" aria-label="表情"></div>
+        <div class="lv-emomsgwrap" id="live-emomsgwrap" hidden>
+          <p class="lv-emomsg" id="live-emomsg"></p>
+          <button class="btn lv-emoretry" id="live-emoretry" type="button" hidden>重试</button>
+        </div>
+        <div class="lv-emoprev" id="live-emoprev" hidden>
+          <img class="lv-emoprev__img" id="live-emoimg" alt="" width="36" height="36">
+          <span class="lv-emoprev__name truncate" id="live-emoname"></span>
+          <button class="btn lv-emoprev__send" id="live-emosend" type="button">发送</button>
+          <button class="icon-btn lv-emoprev__x" id="live-emocancel" type="button" aria-label="取消这个表情">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 6l12 12"/><path d="M18 6L6 18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <p class="lv-foot">弹幕来自直播间实时消息；发弹幕需先用 B 站账号扫码登录。</p>
+    </section>
+  </div>
+</section>
+
+<section class="view" id="view-playlist" data-view="playlist" hidden>
+  <div class="pl-page">
+    <header class="pl-head">
+      <div class="pl-head__text">
+        <p class="eyebrow">LIBRARY</p>
+        <h1 class="h1">歌单</h1>
+        <p class="pl-lede muted">B 站合集、收藏夹与分 P，导进来就是一条能一直放下去的电台。</p>
+      </div>
+      <div class="pl-head__actions">
+        <button class="icon-btn" id="pl-refresh" type="button" aria-label="刷新歌单" data-ico="refresh"></button>
+        <button class="btn btn--sm pl-head__import" id="pl-import-open" type="button" aria-haspopup="dialog">
+          <span class="pl-ico" data-ico="link" aria-hidden="true"></span>
+          <span>导入</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="pl-now" id="pl-now" hidden>
+      <button class="pl-now__btn" id="pl-now-go" type="button" data-act="now-channel" aria-label="正在播放，点进频道看画面">
+        <span class="pl-now__eq" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="pl-now__text">
+          <span class="pl-now__title truncate" data-now-title>正在播放</span>
+          <span class="pl-now__sub dim" data-now-sub>正在播 · 点进频道看画面</span>
+        </span>
+        <span class="pl-now__chev" aria-hidden="true" data-ico="chevron"></span>
+      </button>
+    </div>
+
+    <div class="pl-lists" id="pl-lists-wrap">
+      <div id="pl-lists" aria-live="polite"></div>
+    </div>
+
+    <section class="pl-detail" id="pl-detail" hidden aria-live="polite"></section>
+  </div>
+</section>
+
+<section class="view" id="view-monitor" data-view="monitor" hidden>
+  <div class="mon-wrap">
+
+    <header class="mon-head">
+      <div class="mon-head__main">
+        <p class="eyebrow">多路监控</p>
+        <h1 class="h2 mon-title">同时看几路</h1>
+        <p class="mon-sub" id="mon-sub">自动从关注里补台 · 默认静音</p>
+      </div>
+      <button class="btn mon-add" id="mon-add" type="button">
+        <span data-ico="plus"></span><span>加一路</span>
+      </button>
+    </header>
+
+    <div class="mon-tools">
+      <div class="mon-seg" id="mon-seg" role="group" aria-label="画面布局">
+        <button type="button" data-lay="1" aria-pressed="false">单列</button>
+        <button type="button" data-lay="2" aria-pressed="false">双列</button>
+        <button type="button" data-lay="2x2" aria-pressed="false">2×2</button>
+        <button type="button" data-lay="auto" aria-pressed="true">自适应</button>
+      </div>
+      <button class="icon-btn mon-wall" id="mon-wall" type="button" aria-label="横屏监控墙" aria-pressed="false">
+        <span data-ico="expand"></span>
+      </button>
+      <button class="icon-btn mon-refresh" id="mon-refresh" type="button" aria-label="重新探测开播">
+        <span data-ico="refresh"></span>
+      </button>
+      <button class="mon-fitbtn" id="mon-fit2" type="button" aria-pressed="true" aria-label="画面：铺满">铺满</button>
+    </div>
+
+    <div class="mon-note" id="mon-note" hidden role="status">
+      <span class="mon-note__t" id="mon-note-t">自动补台没成功，检查网络后再试一次。</span>
+      <button class="btn mon-note__b" id="mon-note-retry" type="button">重试</button>
+    </div>
+
+    <div class="mon-grid mon-lay-auto" id="mon-grid" hidden></div>
+
+    <div class="mon-grid mon-lay-auto mon-skel" id="mon-skel" aria-hidden="true">
+      <div class="mon-sk"></div>
+      <div class="mon-sk"></div>
+      <div class="mon-sk"></div>
+      <div class="mon-sk"></div>
+    </div>
+
+    <div class="mon-empty" id="mon-empty" hidden>
+      <span class="mon-empty__art" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="10" width="20" height="16" rx="5"/>
+          <rect x="36" y="10" width="20" height="16" rx="5"/>
+          <rect x="8" y="38" width="20" height="16" rx="5"/>
+          <path d="M36 46h20M46 38v16"/>
+        </svg>
+      </span>
+      <p class="h3">还没有监控的直播间</p>
+      <p class="mon-empty__s">点「加一路」填房间号，或者等关注的主播开播后自动补进来。</p>
+      <button class="btn btn--primary" id="mon-add2" type="button">加一路</button>
+    </div>
+
+    <p class="mon-foot" id="mon-foot">最多同时看 6 路；单击瓦片开声（同时只有一路出声），双击放大，长按拖动排序；右上角「横屏墙」或横过手机铺满屏；离开这页会停止拉流。</p>
+  </div>
+
+  <div class="mon-wallbar" id="mon-wallbar" role="toolbar" aria-label="监控墙工具">
+    <button class="mon-wbtn" id="mon-wall-exit" type="button">
+      <span data-ico="collapse"></span><span>退出墙</span>
+    </button>
+    <button class="mon-wbtn" id="mon-auto" type="button">
+      <span data-ico="grid"></span><span>自动排版</span>
+    </button>
+    <button class="mon-wbtn" id="mon-fit" type="button" aria-pressed="true" aria-label="画面：铺满">
+      <span data-ico="expand"></span><span data-mon-fit-txt>铺满</span>
+    </button>
+    <button class="mon-wbtn" id="mon-wall-add" type="button">
+      <span data-ico="plus"></span><span>加一路</span>
+    </button>
+  </div>
+
+  <div class="mon-focusbar" id="mon-focus-bar" hidden>
+    <div class="mon-focus__txt">
+      <b class="truncate" id="mon-focus-name">直播间</b>
+      <i class="truncate" id="mon-focus-title"></i>
+    </div>
+    <span class="mon-focus__online" id="mon-focus-online"></span>
+    <button class="mon-ovbtn" id="mon-focus-sound" type="button" aria-label="声音：已静音" aria-pressed="false">
+      <span data-ico="mute"></span>
+    </button>
+    <button class="mon-ovbtn" id="mon-focus-close" type="button" aria-label="收起放大">
+      <span data-ico="collapse"></span>
+    </button>
+  </div>
+</section>
+
+<section class="view view--page" id="view-me" data-view="me" hidden>
+  <header class="me-top">
+    <div class="me-top__bar">
+      <button class="icon-btn" id="me-close" type="button" aria-label="返回" data-ico="close"></button>
+      <h1 class="me-top__title h3">我的</h1>
+      <button class="icon-btn" id="me-refresh" type="button" aria-label="刷新" data-ico="refresh"></button>
+    </div>
+  </header>
+
+  <div class="me-page">
+    <div class="me-body">
+      <section class="me-profile" id="me-account" aria-live="polite" aria-label="账号"></section>
+
+      <section class="me-section" aria-labelledby="me-dyn-title">
+        <div class="me-sec-head">
+          <h2 class="h3" id="me-dyn-title">动态</h2>
+          <span class="me-sec-note dim" id="me-feed-note"></span>
+        </div>
+        <div class="me-feed" id="me-feed" aria-live="polite"></div>
+      </section>
+
+      <section class="me-section" aria-labelledby="me-set-title">
+        <div class="me-sec-head">
+          <h2 class="h3" id="me-set-title">设置</h2>
+          <span class="me-sec-note dim">立即生效</span>
+        </div>
+        <div class="me-settings" id="me-settings"></div>
+      </section>
+
+      <section class="me-section" aria-labelledby="me-about-title">
+        <div class="me-sec-head">
+          <h2 class="h3" id="me-about-title">关于</h2>
+        </div>
+        <div class="me-about" id="me-about"></div>
+      </section>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<nav class="dock" id="dock" role="tablist" aria-label="主导航">
+  <button class="dock__item" data-go="channel" role="tab" aria-selected="true" aria-label="频道"><span class="dock__ico" data-ico="broadcast"></span><span class="dock__lbl">频道</span></button>
+  <button class="dock__item" data-go="live" role="tab" aria-selected="false" aria-label="直播"><span class="dock__ico" data-ico="live"></span><span class="dock__lbl">直播</span></button>
+  <button class="dock__item" data-go="playlist" role="tab" aria-selected="false" aria-label="歌单"><span class="dock__ico" data-ico="music"></span><span class="dock__lbl">歌单</span></button>
+  <button class="dock__item" data-go="monitor" role="tab" aria-selected="false" aria-label="监控"><span class="dock__ico" data-ico="grid"></span><span class="dock__lbl">监控</span></button>
+</nav>
+
+<div class="mini" id="mini" hidden>
+  <div class="mini__stage" id="mini-stage"></div>
+  <div class="mini__bar">
+    <b class="mini__title truncate" id="mini-title">正在播放</b>
+    <button class="mini__btn" id="mini-toggle" type="button" aria-label="暂停"></button>
+    <button class="mini__btn" id="mini-close" type="button" aria-label="关掉小窗"></button>
+  </div>
+  <button class="mini__open" id="mini-open" type="button" aria-label="回到频道"></button>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-ttl" hidden>
+  <div class="sheet__grip" id="sheet-grip"><i></i></div>
+  <div class="sheet__head"><h2 class="h3" id="sheet-ttl">标题</h2><button class="icon-btn" id="sheet-x" type="button" aria-label="关闭"></button></div>
+  <div class="sheet__body" id="sheet-body"></div>
+  <div class="sheet__foot" id="sheet-foot"></div>
+</div>
+
+<script src="mpegts.js"></script>
+<script src="qrcode.min.js"></script>
+<script src="app.js"></script>
+<style>/* 独立版没有「停止本机服务」这个语义 */
+#btn-quit{display:none!important}</style>
+<script>
+/* 哔哩吧啦 Android 桥接层：网页只负责画面，声音交给原生前台服务（锁屏/通知可控）。
+   位置一律取 video.currentTime —— 页面在 seek/续播后它就是唯一事实。 */
+(function(){
+  "use strict";
+  var BR = (typeof window.AndroidRadio !== "undefined") ? window.AndroidRadio : null;
+  if (!BR) return;
+  try { window.__RR_STANDALONE__ = true; } catch(e){}
+  var video = document.getElementById("player");
+  if (!video) { try { console.warn("bridge: #player missing"); } catch(e){} return; }
+  var lastTitle = "哔哩吧啦";
+  var origPlay = video.play;
+  video.play = function(){
+    try {
+      var t = document.getElementById("np-title");
+      if (t && t.textContent && t.textContent.trim()) lastTitle = t.textContent.trim();
+      var src = video.src || "";
+      var m = src.match(/[?&]u=([^&]+)/);
+      // 页面自己切前后台时会复播画面，那一次不该把原生播放重新拉起来
+      if (m && BR.play && !window.__rrKeepNative) {
+        var pos = Math.max(0, Math.floor((video.currentTime || 0) * 1000));
+        var key = video.dataset.key || "";
+        var cover = video.dataset.cover || (location.origin + "/assets/idle.webp");
+        BR.play(lastTitle, location.origin + "/api/stream?u=" + m[1], pos, 0, key, cover);
+      }
+      video.muted = true;
+    } catch(e){}
+    return origPlay ? origPlay.apply(video, arguments) : Promise.resolve();
+  };
+  var origPause = video.pause ? video.pause.bind(video) : function(){};
+  video.pause = function(){
+    // 只有「人按了暂停」才停原生；系统把页面挂起导致的 pause 必须放行
+    try { if (BR.stop && !window.__rrKeepNative) BR.stop(); } catch(e){}
+    return origPause();
+  };
+})();
+</script>
+<script>
+/* APK 里 assets 本来就在本地，不需要 Service Worker；历史版本的 SW 会把旧
+   index.html 缓存住，换 APK 后仍显示老界面。这里清一次注册与缓存，清到过就重载一次。 */
+(function () {
+  if (!("serviceWorker" in navigator) && !window.caches) return;
+  var KEY = "__rr_sw_purged_v9";
+  try { if (sessionStorage.getItem(KEY)) return; } catch (e) {}
+  var jobs = [];
+  if ("serviceWorker" in navigator) {
+    jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+      var had = rs && rs.length;
+      return Promise.all(rs.map(function (r) { return r.unregister(); }))
+        .then(function () { return had; });
+    }).catch(function () { return false; }));
+  }
+  if (window.caches && caches.keys) {
+    jobs.push(caches.keys().then(function (ks) {
+      return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+    }).catch(function () {}));
+  }
+  Promise.all(jobs).then(function (r) {
+    var had = !!r[0];
+    try { sessionStorage.setItem(KEY, "1"); } catch (e) {}
+    if (had) location.reload();
+  });
+})();
+</script>
+</body>
+</html>
